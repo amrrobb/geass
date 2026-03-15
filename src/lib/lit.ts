@@ -94,7 +94,7 @@ export async function mintPKP(): Promise<{
       accessToken: JSON.stringify({
         sig: "0x",
         derivedVia: "ethWallet",
-        signedMessage: "Aegis Agent PKP",
+        signedMessage: "GEASS Agent PKP",
         address: wallet.address,
       }),
     },

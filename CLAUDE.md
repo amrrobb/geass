@@ -1,7 +1,7 @@
-# Aegis
+# GEASS
 
 ## Overview
-Aegis is a financial privacy agent on Base Sepolia. Spending authority is delegated via MetaMask Delegation Framework with on-chain caveat enforcers. The agent reasons privately via Venice.ai, executes DeFi via Bankr, and authenticates via SIWA (EIP-4361) without leaking its principal's identity.
+GEASS is a financial privacy agent on Base Sepolia. Spending authority is delegated via MetaMask Delegation Framework with on-chain caveat enforcers. The agent reasons privately via Venice.ai, executes DeFi via Bankr, and authenticates via SIWA (EIP-4361) without leaking its principal's identity.
 
 ## Hackathon
 - **Event**: Synthesis (synthesis.md)
@@ -11,7 +11,7 @@ Aegis is a financial privacy agent on Base Sepolia. Spending authority is delega
 - **Mid-hackathon AI feedback**: March 18 (MUST have something deployed)
 
 ## The Pitch
-"Every other agent project shows you what the agent DID. Aegis shows you what the agent DIDN'T reveal."
+"Every other agent project shows you what the agent DID. GEASS shows you what the agent DIDN'T reveal."
 
 ## Tech Stack
 - TypeScript, Next.js 14, Base Sepolia (testnet)

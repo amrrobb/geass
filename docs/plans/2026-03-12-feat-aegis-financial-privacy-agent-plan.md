@@ -1,5 +1,5 @@
 ---
-title: "feat: Aegis — Financial Privacy Agent on Base"
+title: "feat: GEASS — Financial Privacy Agent on Base"
 type: feat
 status: active
 date: 2026-03-12
@@ -7,9 +7,9 @@ date: 2026-03-12
 
 ## Overview
 
-**Pitch**: "Every other agent project shows what the agent DID. Aegis shows what it DIDN'T reveal."
+**Pitch**: "Every other agent project shows what the agent DID. GEASS shows what it DIDN'T reveal."
 
-Aegis is a financial privacy agent on Base. You instruct it to pay, DCA, or send funds — it executes via Veil Cash ZK proofs so the human's on-chain identity is never linked to the output transaction. The agent carries its own ERC-8004 identity and authenticates via SIWA, but the principal stays invisible.
+GEASS is a financial privacy agent on Base. You instruct it to pay, DCA, or send funds — it executes via Veil Cash ZK proofs so the human's on-chain identity is never linked to the output transaction. The agent carries its own ERC-8004 identity and authenticates via SIWA, but the principal stays invisible.
 
 **Hackathon**: Synthesis — deadline **Mar 22, 2026** | Mid-feedback: Mar 18 (must have deployed demo)
 

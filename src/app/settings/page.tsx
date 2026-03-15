@@ -59,7 +59,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Wallet */}
-      <div className="bg-aegis-card border border-aegis-border rounded-xl p-6">
+      <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Connected Wallet</h3>
         {isConnected ? (
           <p className="font-mono text-sm text-white">{address}</p>
@@ -69,38 +69,38 @@ export default function SettingsPage() {
       </div>
 
       {/* SIWA */}
-      <div className="bg-aegis-card border border-aegis-border rounded-xl p-6">
+      <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Sign-In With Agent (SIWA)</h3>
         <p className="text-xs text-gray-600 mb-4">
           EIP-4361 authentication — proves agent identity without revealing the principal.
         </p>
         {siwaStatus === "verified" ? (
-          <div className="flex items-center gap-2 text-aegis-green text-sm">
+          <div className="flex items-center gap-2 text-geass-green text-sm">
             <span>&#10003;</span> Agent authenticated
           </div>
         ) : (
           <button
             onClick={handleSiwaSignIn}
             disabled={!isConnected || siwaStatus === "signing"}
-            className="bg-aegis-accent hover:bg-indigo-600 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition"
+            className="bg-geass-accent hover:bg-indigo-600 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition"
           >
             {siwaStatus === "signing" ? "Signing..." : "Sign In as Agent"}
           </button>
         )}
         {siwaStatus === "failed" && (
-          <p className="text-xs text-aegis-red mt-2">Verification failed. Try again.</p>
+          <p className="text-xs text-geass-red mt-2">Verification failed. Try again.</p>
         )}
       </div>
 
       {/* Spending Policy */}
-      <div className="bg-aegis-card border border-aegis-border rounded-xl p-6">
+      <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Spending Policy</h3>
         <p className="text-xs text-gray-600 mb-4">
           Enforced inside Lit TEE — the PKP key only signs transactions within this limit.
         </p>
         {agentStatus && (
           <p className="text-sm text-white mb-3">
-            Current: <span className="text-aegis-accent font-mono">{agentStatus.spendingPolicy}</span>
+            Current: <span className="text-geass-accent font-mono">{agentStatus.spendingPolicy}</span>
           </p>
         )}
         <div className="flex gap-3">
@@ -109,20 +109,20 @@ export default function SettingsPage() {
             value={policyInput}
             onChange={(e) => setPolicyInput(e.target.value)}
             placeholder="0.05"
-            className="bg-aegis-bg border border-aegis-border rounded-lg px-3 py-2 text-sm text-white w-32 focus:outline-none focus:border-aegis-accent"
+            className="bg-geass-bg border border-geass-border rounded-lg px-3 py-2 text-sm text-white w-32 focus:outline-none focus:border-geass-accent"
           />
           <button
             onClick={updatePolicy}
-            className="bg-aegis-accent hover:bg-indigo-600 px-4 py-2 rounded-lg text-sm text-white transition"
+            className="bg-geass-accent hover:bg-indigo-600 px-4 py-2 rounded-lg text-sm text-white transition"
           >
             Update Limit
           </button>
         </div>
-        {policyMsg && <p className="text-xs text-aegis-green mt-2">{policyMsg}</p>}
+        {policyMsg && <p className="text-xs text-geass-green mt-2">{policyMsg}</p>}
       </div>
 
       {/* Agent Identity (ERC-8004) */}
-      <div className="bg-aegis-card border border-aegis-border rounded-xl p-6">
+      <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Agent Identity (ERC-8004)</h3>
         <p className="text-xs text-gray-600 mb-4">
           The agent carries its own on-chain identity via PKP. The human principal is never linked.

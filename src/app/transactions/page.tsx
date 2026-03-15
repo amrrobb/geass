@@ -49,7 +49,7 @@ export default function TransactionsPage() {
         {txs.map((tx) => (
           <div
             key={tx.id}
-            className="bg-aegis-card border border-aegis-border rounded-xl p-6"
+            className="bg-geass-card border border-geass-border rounded-xl p-6"
           >
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-gray-500">
@@ -57,8 +57,8 @@ export default function TransactionsPage() {
               </span>
               <span className={`text-sm font-medium px-2 py-0.5 rounded ${
                 tx.policyResult === "approved"
-                  ? "bg-green-900/30 text-aegis-green"
-                  : "bg-red-900/30 text-aegis-red"
+                  ? "bg-green-900/30 text-geass-green"
+                  : "bg-red-900/30 text-geass-red"
               }`}>
                 {tx.policyResult === "approved" ? "Signed" : "Rejected"}
               </span>
@@ -75,13 +75,13 @@ export default function TransactionsPage() {
               <div className="flex flex-col items-center">
                 {tx.policyResult === "approved" ? (
                   <>
-                    <div className="text-aegis-green text-2xl font-bold">&#10003;</div>
-                    <p className="text-xs text-aegis-green font-medium">Within Policy</p>
+                    <div className="text-geass-green text-2xl font-bold">&#10003;</div>
+                    <p className="text-xs text-geass-green font-medium">Within Policy</p>
                   </>
                 ) : (
                   <>
-                    <div className="text-aegis-red text-2xl font-bold">&#10007;</div>
-                    <p className="text-xs text-aegis-red font-medium">Exceeds Limit</p>
+                    <div className="text-geass-red text-2xl font-bold">&#10007;</div>
+                    <p className="text-xs text-geass-red font-medium">Exceeds Limit</p>
                   </>
                 )}
                 <p className="text-[10px] text-gray-600 mt-1">
@@ -96,8 +96,8 @@ export default function TransactionsPage() {
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-aegis-border flex items-center gap-2">
-              <svg className="w-4 h-4 text-aegis-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="mt-3 pt-3 border-t border-geass-border flex items-center gap-2">
+              <svg className="w-4 h-4 text-geass-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               <span className="text-xs text-gray-600">

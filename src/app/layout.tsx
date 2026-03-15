@@ -7,7 +7,7 @@ import { Nav } from "@/components/nav";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Aegis — Financial Privacy Agent",
+  title: "GEASS — The Power of Absolute Delegation",
   description: "Privacy-preserving financial agent on Base via Veil Cash",
 };
 

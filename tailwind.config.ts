@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        aegis: {
+        geass: {
           bg: "#0a0a0f",
           card: "#12121a",
           border: "#1e1e2e",

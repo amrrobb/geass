@@ -1,6 +1,6 @@
-# Aegis — Financial Privacy Agent on Base
+# GEASS — The Power of Absolute Delegation
 
-Every other agent project shows what the agent DID. Aegis shows what it DIDN'T reveal.
+Every other agent project shows what the agent DID. GEASS shows what it DIDN'T reveal.
 
 ## Problem
 
@@ -8,7 +8,7 @@ Agents leak metadata. Every on-chain action — payments, swaps, subscriptions �
 
 ## Solution
 
-Aegis is a financial privacy agent on Base Sepolia. The agent's wallet key is **MPC-split across Lit Protocol TEE nodes** — nobody can extract it, not even the developer. Spending policies are enforced **inside the TEE** before any signature is produced. The agent authenticates via **SIWA (EIP-4361)** without leaking its principal's identity.
+GEASS is a financial privacy agent on Base Sepolia. The agent's wallet key is **MPC-split across Lit Protocol TEE nodes** — nobody can extract it, not even the developer. Spending policies are enforced **inside the TEE** before any signature is produced. The agent authenticates via **SIWA (EIP-4361)** without leaking its principal's identity.
 
 **The secret the agent keeps: its own private key.** No single party ever holds it.
 
@@ -21,7 +21,7 @@ Aegis is a financial privacy agent on Base Sepolia. The agent's wallet key is **
 └────────────────────┬────────────────────────┘
                      │ API
 ┌────────────────────▼────────────────────────┐
-│               Aegis Agent                   │
+│               GEASS Agent                   │
 │    (command parser + policy enforcement)    │
 └───┬──────────────┬─────────────────┬────────┘
     │              │                 │

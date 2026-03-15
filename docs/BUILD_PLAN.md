@@ -1,4 +1,4 @@
-# Aegis Build Plan
+# GEASS Build Plan
 **Hackathon**: Synthesis — deadline Mar 22, 2026
 **Theme**: Agents that keep secrets
 **Stack**: TypeScript, Next.js 14, Veil Cash CLI, Bankr CLI, SIWA

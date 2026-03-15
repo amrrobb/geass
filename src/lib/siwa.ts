@@ -14,13 +14,13 @@ export interface SiwaMessage {
 export function createSiwaMessage(
   address: `0x${string}`,
   nonce: string,
-  domain = "aegis.local",
-  uri = "https://aegis.local"
+  domain = "geass.local",
+  uri = "https://geass.local"
 ): { message: string; params: SiwaMessage } {
   const params: SiwaMessage = {
     domain,
     address,
-    statement: "Sign in to Aegis as an autonomous agent. This signature proves agent identity without revealing the principal.",
+    statement: "Sign in to GEASS as an autonomous agent. This signature proves agent identity without revealing the principal.",
     uri,
     version: "1",
     chainId: 84532, // Base Sepolia
