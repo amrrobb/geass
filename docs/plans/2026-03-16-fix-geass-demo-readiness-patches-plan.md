@@ -228,25 +228,25 @@ Key requirements from deployment review:
 
 ### P0 (March 18 deadline)
 
-- [ ] API routes import agent directly — no `execSync`, no command injection
-- [ ] `/transactions` shows real agent history, no hardcoded data
-- [ ] `/settings` shows delegation info, no PKP/Lit fields, no SIWA button
-- [ ] SIWA `auth` command returns server-signed message proving agent identity
-- [ ] Venice called only after policy check passes; `include_venice_system_prompt: false` set
-- [ ] Venice fails closed (reject) not open (approve)
-- [ ] `.env.example` matches actual code variable names
-- [ ] Zero references to "Lit TEE", "PKP", "MPC-split", or "Veil Cash" in any rendered UI
+- [x] API routes import agent directly — no `execSync`, no command injection
+- [x] `/transactions` shows real agent history, no hardcoded data
+- [x] `/settings` shows delegation info, no PKP/Lit fields, no SIWA button
+- [x] SIWA `auth` command returns server-signed message proving agent identity
+- [x] Venice called only after policy check passes; `include_venice_system_prompt: false` set
+- [x] Venice fails closed (reject) not open (approve)
+- [x] `.env.example` matches actual code variable names
+- [x] Zero references to "Lit TEE", "PKP", "MPC-split", or "Veil Cash" in any rendered UI
 
 ### P1 (March 18)
 
-- [ ] `lit.ts`, `veil.ts`, `shielded-balance.tsx` deleted
-- [ ] All `@lit-protocol/*` and `ethers` removed from package.json
-- [ ] Layout metadata is accurate
+- [x] `lit.ts`, `veil.ts`, `shielded-balance.tsx` deleted
+- [x] All `@lit-protocol/*` and `ethers` removed from package.json
+- [x] Layout metadata is accurate
 
 ### P2 (March 22 stretch)
 
-- [ ] Balance fetches parallelized
-- [ ] Basescan links for transaction hashes
+- [x] Balance fetches parallelized
+- [x] Basescan links for transaction hashes
 - [ ] README updated for submission
 - [ ] Deployed to `geass.robbyn.xyz` via Coolify
 
