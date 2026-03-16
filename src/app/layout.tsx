@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "GEASS — The Power of Absolute Delegation",
-  description: "Privacy-preserving financial agent on Base via Veil Cash",
+  description: "The power of absolute delegation — scoped spending via MetaMask Delegation Framework",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
