@@ -1,43 +1,39 @@
 "use client";
 
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount } from "wagmi";
 import { useState, useEffect } from "react";
-import { createSiwaMessage, generateNonce } from "@/lib/siwa";
+
+interface AgentStatus {
+  setup: string;
+  userSmartAccount: string | null;
+  agentSmartAccount: string | null;
+  spendingPolicy: string;
+  enforcement: string;
+  chain: string;
+  reasoning: string;
+  execution: string;
+  identity: string;
+  txCount: number;
+}
+
+function truncAddr(addr: string) {
+  return addr.slice(0, 8) + "…" + addr.slice(-6);
+}
 
 export default function SettingsPage() {
   const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const [siwaStatus, setSiwaStatus] = useState<"idle" | "signing" | "verified" | "failed">("idle");
-  const [agentStatus, setAgentStatus] = useState<any>(null);
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
   const [policyInput, setPolicyInput] = useState("");
   const [policyMsg, setPolicyMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/agent/status")
       .then((r) => r.json())
-      .then(setAgentStatus)
+      .then((data) => {
+        if (!data.error) setAgentStatus(data);
+      })
       .catch(() => {});
   }, []);
-
-  async function handleSiwaSignIn() {
-    if (!address) return;
-    setSiwaStatus("signing");
-    try {
-      const nonce = generateNonce();
-      const { message } = createSiwaMessage(address, nonce);
-      const signature = await signMessageAsync({ message });
-
-      const res = await fetch("/api/auth/siwa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, signature, address }),
-      });
-      const json = await res.json();
-      setSiwaStatus(json.valid ? "verified" : "failed");
-    } catch {
-      setSiwaStatus("failed");
-    }
-  }
 
   async function updatePolicy() {
     if (!policyInput) return;
@@ -48,17 +44,20 @@ export default function SettingsPage() {
     });
     const json = await res.json();
     setPolicyMsg(json.ok ? `Policy updated to ${policyInput} ETH` : json.error);
-    fetch("/api/agent/status").then((r) => r.json()).then(setAgentStatus).catch(() => {});
+    fetch("/api/agent/status")
+      .then((r) => r.json())
+      .then((data) => { if (!data.error) setAgentStatus(data); })
+      .catch(() => {});
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Agent identity, authentication, and spending policy</p>
+        <p className="text-sm text-gray-500 mt-1">Delegation info, spending policy, and agent identity</p>
       </div>
 
-      {/* Wallet */}
+      {/* Connected Wallet */}
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Connected Wallet</h3>
         {isConnected ? (
@@ -68,27 +67,43 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* SIWA */}
+      {/* Delegation Info */}
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">Sign-In With Agent (SIWA)</h3>
+        <h3 className="text-sm font-medium text-gray-400 mb-3">Delegation Info</h3>
         <p className="text-xs text-gray-600 mb-4">
-          EIP-4361 authentication — proves agent identity without revealing the principal.
+          Spending authority delegated via MetaMask Delegation Framework with on-chain caveat enforcers.
         </p>
-        {siwaStatus === "verified" ? (
-          <div className="flex items-center gap-2 text-geass-green text-sm">
-            <span>&#10003;</span> Agent authenticated
+        {agentStatus ? (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Setup</span>
+              <p className={`font-mono ${agentStatus.setup === "complete" ? "text-geass-green" : "text-yellow-500"}`}>
+                {agentStatus.setup}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500">Chain</span>
+              <p className="font-mono text-white">{agentStatus.chain}</p>
+            </div>
+            {agentStatus.userSmartAccount && (
+              <div>
+                <span className="text-gray-500">User Smart Account</span>
+                <p className="font-mono text-white text-xs">{truncAddr(agentStatus.userSmartAccount)}</p>
+              </div>
+            )}
+            {agentStatus.agentSmartAccount && (
+              <div>
+                <span className="text-gray-500">Agent Address</span>
+                <p className="font-mono text-white text-xs">{truncAddr(agentStatus.agentSmartAccount)}</p>
+              </div>
+            )}
+            <div className="col-span-2">
+              <span className="text-gray-500">Enforcement</span>
+              <p className="font-mono text-white text-xs">{agentStatus.enforcement}</p>
+            </div>
           </div>
         ) : (
-          <button
-            onClick={handleSiwaSignIn}
-            disabled={!isConnected || siwaStatus === "signing"}
-            className="bg-geass-accent hover:bg-indigo-600 disabled:opacity-50 px-4 py-2 rounded-lg text-sm text-white transition"
-          >
-            {siwaStatus === "signing" ? "Signing..." : "Sign In as Agent"}
-          </button>
-        )}
-        {siwaStatus === "failed" && (
-          <p className="text-xs text-geass-red mt-2">Verification failed. Try again.</p>
+          <p className="text-sm text-gray-600">Loading agent status…</p>
         )}
       </div>
 
@@ -96,7 +111,8 @@ export default function SettingsPage() {
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Spending Policy</h3>
         <p className="text-xs text-gray-600 mb-4">
-          Enforced inside Lit TEE — the PKP key only signs transactions within this limit.
+          Enforced on-chain via MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer.
+          The caveat enforcer reverts any transaction exceeding the limit.
         </p>
         {agentStatus && (
           <p className="text-sm text-white mb-3">
@@ -121,33 +137,32 @@ export default function SettingsPage() {
         {policyMsg && <p className="text-xs text-geass-green mt-2">{policyMsg}</p>}
       </div>
 
-      {/* Agent Identity (ERC-8004) */}
+      {/* Agent Identity */}
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">Agent Identity (ERC-8004)</h3>
+        <h3 className="text-sm font-medium text-gray-400 mb-3">Agent Identity (SIWA)</h3>
         <p className="text-xs text-gray-600 mb-4">
-          The agent carries its own on-chain identity via PKP. The human principal is never linked.
+          The agent authenticates via SIWA (EIP-4361) using its own key — the human principal is never revealed.
+          Use the <span className="text-geass-accent font-mono">auth</span> command from the Dashboard to demonstrate.
         </p>
-        {agentStatus ? (
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        {agentStatus && (
+          <div className="space-y-2 text-sm">
             <div>
-              <span className="text-gray-500">PKP Wallet</span>
-              <p className="font-mono text-white">{agentStatus.pkpWallet}</p>
+              <span className="text-gray-500">Reasoning: </span>
+              <span className="text-white">{agentStatus.reasoning}</span>
             </div>
             <div>
-              <span className="text-gray-500">Lit Network</span>
-              <p className="font-mono text-white">{agentStatus.litNetwork}</p>
+              <span className="text-gray-500">Execution: </span>
+              <span className="text-white">{agentStatus.execution}</span>
             </div>
             <div>
-              <span className="text-gray-500">Chain</span>
-              <p className="font-mono text-white">{agentStatus.chain}</p>
+              <span className="text-gray-500">Identity: </span>
+              <span className="text-white">{agentStatus.identity}</span>
             </div>
             <div>
-              <span className="text-gray-500">Key Isolation</span>
-              <p className="font-mono text-white text-xs">{agentStatus.keyIsolation}</p>
+              <span className="text-gray-500">Transactions: </span>
+              <span className="text-white">{agentStatus.txCount}</span>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-gray-600">Loading agent status...</p>
         )}
       </div>
     </div>
