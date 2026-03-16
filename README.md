@@ -1,16 +1,21 @@
 # GEASS — The Power of Absolute Delegation
 
-Every other agent project shows what the agent DID. GEASS shows what it DIDN'T reveal.
+> "Every other agent project shows you what the agent DID. GEASS shows you what the agent DIDN'T reveal."
+
+**Live demo:** [geass.robbyn.xyz](https://geass.robbyn.xyz)
 
 ## Problem
 
-Agents leak metadata. Every on-chain action — payments, swaps, subscriptions — is publicly attributable to the human who funded the agent. The agent's private key sits in a `.env` file that the developer controls. Spending patterns, contact lists, and financial habits are all exposed. No privacy primitive exists for agents.
+Agents leak metadata. Every on-chain action — payments, swaps, subscriptions — is publicly attributable to the human who funded the agent. Spending patterns, contact lists, and financial habits are all exposed. No privacy primitive exists for agents.
 
 ## Solution
 
-GEASS is a financial privacy agent on Base Sepolia. The agent's wallet key is **MPC-split across Lit Protocol TEE nodes** — nobody can extract it, not even the developer. Spending policies are enforced **inside the TEE** before any signature is produced. The agent authenticates via **SIWA (EIP-4361)** without leaking its principal's identity.
+GEASS is a financial privacy agent on Base Sepolia. Spending authority is **delegated via MetaMask Delegation Framework** with on-chain caveat enforcers that limit what the agent can spend. The agent reasons privately via **Venice.ai** (no data stored), executes DeFi via **Bankr**, and authenticates via **SIWA (EIP-4361)** without leaking its principal's identity.
 
-**The secret the agent keeps: its own private key.** No single party ever holds it.
+**Three secrets the agent keeps:**
+1. **What it thinks** — Venice.ai reasoning is private (no prompts/outputs stored)
+2. **Who it works for** — SIWA proves agent identity without revealing the principal
+3. **What it can't do** — on-chain caveat enforcers silently block unauthorized transactions
 
 ## Architecture
 
@@ -19,90 +24,127 @@ GEASS is a financial privacy agent on Base Sepolia. The agent's wallet key is **
 │                  Dashboard                  │
 │       (Next.js — command + policy UI)       │
 └────────────────────┬────────────────────────┘
-                     │ API
+                     │ API (direct import, async)
 ┌────────────────────▼────────────────────────┐
 │               GEASS Agent                   │
-│    (command parser + policy enforcement)    │
-└───┬──────────────┬─────────────────┬────────┘
-    │              │                 │
-┌───▼───┐    ┌────▼────┐     ┌─────▼─────┐
-│  Lit  │    │  Bankr  │     │   SIWA    │
-│  PKP  │    │ Wallet  │     │   Auth    │
-│ (TEE) │    │  (DeFi) │     │ (EIP4361) │
-└───┬───┘    └────┬────┘     └───────────┘
-    │             │
-    ▼             ▼
+│  (command parser + policy-enforced execution)│
+└───┬──────────┬──────────┬──────────┬────────┘
+    │          │          │          │
+┌───▼────┐ ┌──▼───┐ ┌───▼────┐ ┌──▼──────┐
+│MetaMask│ │Venice│ │ Bankr  │ │  SIWA   │
+│Deleg.  │ │ .ai  │ │ (DeFi) │ │  Auth   │
+│Framework│ │(LLM) │ │        │ │(EIP4361)│
+└───┬────┘ └──────┘ └───┬────┘ └─────────┘
+    │                    │
+    ▼                    ▼
 ┌─────────────────────────────────────────────┐
-│            Base Sepolia (Testnet)            │
-│     Agent PKP wallet on-chain identity      │
-│         ERC-8004 agent registry             │
+│            Base Sepolia (84532)              │
+│  Smart Accounts + Delegation Enforcers      │
 └─────────────────────────────────────────────┘
 ```
 
 ## How It Works
 
-1. Agent mints a **Lit PKP** — private key is MPC-split across TEE nodes
-2. Human sets a **spending policy** (e.g., max 0.01 ETH per tx)
-3. When the agent sends funds, the Lit Action checks the policy **inside the TEE**
-4. If the tx exceeds the limit, the key **refuses to sign** — no signature is produced
-5. Agent authenticates via **SIWA** — proves identity without revealing the principal
-6. The human's identity is never on-chain — only the agent's PKP address appears
+1. User creates a **smart account** and delegates scoped spending to the agent
+2. **NativeTokenTransferAmountEnforcer** limits ETH per delegation on-chain
+3. Agent checks policy locally (fast fail), then reasons via **Venice.ai** privately
+4. If approved, executes via **delegation redemption** — enforced on-chain
+5. If rejected, the caveat enforcer **reverts** — no transaction, no gas wasted
+6. Agent authenticates via **SIWA** — proves identity without revealing the principal
+
+## Demo Script (2 minutes)
+
+```bash
+# 1. Setup — create smart accounts + delegation
+> setup
+
+# 2. Send within policy — APPROVED
+> send 0.005 to 0xd4c8...91ab
+
+# 3. Send over policy — REJECTED by caveat enforcer
+> send 0.05 to 0xd4c8...91ab
+
+# 4. Show Venice reasoning (private — no data stored)
+# (reasoning appears in send output)
+
+# 5. Show SIWA auth — agent signs, not the user
+> auth
+
+# 6. "Where is the spending authority?"
+# → On-chain. Auditable. Revocable.
+> status
+```
 
 ## Quickstart
 
 ```bash
-git clone <repo> && cd aegis
-cp .env.example .env         # fill in PRIVATE_KEY (for Chronicle Yellowstone faucet)
+git clone https://github.com/amrrobb/geass && cd geass
+cp .env.example .env    # fill in PRIVATE_KEY, VENICE_API_KEY
 npm install
-npm run dev                  # http://localhost:3000
+npm run dev             # http://localhost:3000
 ```
 
 ## Agent CLI
 
 ```bash
-npm run agent -- create wallet          # mint PKP (key split across Lit TEE)
-npm run agent -- status                 # check PKP + policy + key isolation
-npm run agent -- send 0.005 to 0xABC    # send within policy
-npm run agent -- send 0.05 to 0xABC     # REJECTED — exceeds policy
-npm run agent -- set-policy 0.1         # update spending limit
+npm run agent -- setup                    # create smart accounts + delegation
+npm run agent -- status                   # check delegation + policy info
+npm run agent -- send 0.005 to 0xABC      # send within policy (approved)
+npm run agent -- send 0.05 to 0xABC       # REJECTED — exceeds policy
+npm run agent -- set-policy 0.02          # update spending limit
+npm run agent -- auth                     # generate + sign SIWA message
+npm run agent -- balance                  # check wallet balances
+npm run agent -- history                  # recent transaction log
 ```
 
 ## Tech Stack
 
 | Tool | Role |
 |------|------|
-| **Lit Protocol** | PKP wallet — MPC key split across TEE nodes, unextractable |
-| **Lit Actions** | Spending policy enforced inside TEE before signing |
-| **Bankr** | Agent wallet provisioning + DeFi execution |
-| **SIWA** | Sign-In With Agent — EIP-4361 auth without leaking principal |
-| **ERC-8004** | On-chain agent identity (Base Sepolia) |
+| **MetaMask Delegation Framework** | Scoped spending delegation with on-chain caveat enforcers |
+| **Venice.ai** | Private reasoning engine — no prompts/outputs stored |
+| **Bankr** | Agent wallet + DeFi execution |
+| **SIWA (EIP-4361)** | Agent authentication without revealing principal |
+| **viem** | All chain interaction |
 | **Next.js 14** | Dashboard + API routes |
-| **Base Sepolia** | Testnet deployment |
+| **Base Sepolia** | Testnet deployment (chain 84532) |
 
 ## What Makes This Different
 
-- **Key isolation**: The agent's private key is never in a `.env` file. It's MPC-split across Lit TEE nodes.
-- **Policy enforcement in TEE**: Spending limits aren't checked by app code (which can be modified). They're enforced inside sealed enclaves.
-- **Identity separation**: The agent has its own on-chain identity (ERC-8004). The human principal never appears on-chain.
-- **Not a wrapper**: The agent makes autonomous decisions about policy compliance. It refuses to sign unauthorized transactions.
+- **On-chain policy enforcement**: Spending limits enforced by smart contract caveat enforcers, not app code
+- **Private cognition**: Venice.ai runs inference without storing prompts or outputs
+- **Identity separation**: The agent authenticates via SIWA — services see the agent's address, never the principal's
+- **Not a wrapper**: The agent reasons about transactions privately, then executes via delegated authority with on-chain enforcement
+
+## Key Addresses (Base Sepolia)
+
+| Contract | Address |
+|----------|---------|
+| User Smart Account | `0x58f5b2fBd6442480448D05d555F4E30959cb7e48` |
+| Agent Smart Account | `0x8deFc5Ab971023D4be5be430B660EAafbbc07EC5` |
+| DelegationManager | `0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3` |
+| NativeTokenTransferAmountEnforcer | `0xF71af580b9c3078fbc2BBF16FbB8EEd82b330320` |
 
 ## Project Structure
 
 ```
-aegis/
-├── agent/index.ts              # Command parser + executor
+geass/
+├── agent/index.ts              # CLI entry point (re-exports from src/lib/agent)
 ├── src/
 │   ├── lib/
-│   │   ├── lit.ts              # Lit PKP + spending policy actions
+│   │   ├── agent.ts            # Agent core — command parser + executor
+│   │   ├── delegation.ts       # MetaMask Delegation Framework wrapper
+│   │   ├── venice.ts           # Venice.ai private reasoning
 │   │   ├── bankr.ts            # Bankr CLI wrapper
-│   │   ├── siwa.ts             # SIWA auth (EIP-4361)
+│   │   ├── siwa.ts             # SIWA auth (EIP-4361) + server-side signing
 │   │   └── wagmi.ts            # Wagmi config (Base Sepolia)
 │   ├── components/
 │   │   └── nav.tsx             # Navigation + wallet connect
 │   └── app/
 │       ├── page.tsx            # Dashboard — status + command input
-│       ├── transactions/       # Policy-enforced TX visualization
-│       ├── settings/           # SIWA + spending policy + PKP identity
-│       └── api/                # Agent status, run, auth
+│       ├── transactions/       # Real transaction history (policy-enforced)
+│       ├── settings/           # Delegation info + spending policy
+│       └── api/                # Agent status, run, auth routes
+├── Dockerfile                  # Multi-stage build for Coolify/Docker
 └── docs/                       # Plans + build docs
 ```
