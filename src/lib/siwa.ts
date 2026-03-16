@@ -1,4 +1,5 @@
-import { verifyMessage } from "viem";
+import { verifyMessage, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 export interface SiwaMessage {
   domain: string;
@@ -59,6 +60,14 @@ export async function verifySiwaSignature(
   } catch {
     return { address: expectedAddress, valid: false };
   }
+}
+
+// Server-side signing: agent proves its identity without the user's wallet
+export async function signSiwaMessage(message: string): Promise<Hex> {
+  const key = process.env.PRIVATE_KEY as Hex;
+  if (!key) throw new Error("PRIVATE_KEY not set — cannot sign SIWA message");
+  const account = privateKeyToAccount(key);
+  return account.signMessage({ message });
 }
 
 export function generateNonce(): string {

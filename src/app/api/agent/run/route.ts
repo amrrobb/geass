@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { execSync } from "child_process";
+import { parseCommand, executeCommand } from "@/lib/agent";
 
-const ALLOWED_COMMANDS = [
+export const dynamic = "force-dynamic";
+
+const ALLOWED_FIRST_WORDS = new Set([
   "status", "send", "balance", "help", "setup", "create", "init",
   "set-policy", "policy", "auth", "authenticate", "history", "log",
-];
+]);
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,18 +17,15 @@ export async function POST(req: NextRequest) {
     }
 
     const firstWord = command.trim().split(/\s+/)[0].toLowerCase();
-    if (!ALLOWED_COMMANDS.includes(firstWord)) {
+    if (!ALLOWED_FIRST_WORDS.has(firstWord)) {
       return NextResponse.json(
-        { error: `Command "${firstWord}" not allowed. Allowed: ${ALLOWED_COMMANDS.join(", ")}` },
+        { error: `Command "${firstWord}" not allowed` },
         { status: 403 }
       );
     }
 
-    const raw = execSync(`tsx agent/index.ts ${command}`, {
-      encoding: "utf-8",
-      timeout: 120_000,
-      cwd: process.cwd(),
-    }).trim();
+    const cmd = parseCommand(command);
+    const raw = await executeCommand(cmd);
 
     try {
       const parsed = JSON.parse(raw);
@@ -34,7 +33,8 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ result: raw });
     }
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.stderr || err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

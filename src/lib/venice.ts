@@ -21,8 +21,8 @@ export async function evaluateTransaction(opts: {
   const apiKey = process.env.VENICE_API_KEY;
   if (!apiKey) {
     return {
-      reasoning: "Venice API not configured — skipping private reasoning",
-      decision: "approve",
+      reasoning: "Venice API not configured — reasoning unavailable, defaulting to reject",
+      decision: "reject",
       confidence: 0,
     };
   }
@@ -50,6 +50,7 @@ Respond in JSON only:
         messages: [{ role: "user", content: prompt }],
         max_tokens: 200,
         temperature: 0.1,
+        venice_parameters: { include_venice_system_prompt: false },
       }),
     });
 
@@ -57,19 +58,31 @@ Respond in JSON only:
       const err = await res.json().catch(() => ({}));
       return {
         reasoning: `Venice unavailable: ${(err as any).error || res.statusText}`,
-        decision: "approve",
+        decision: "reject",
         confidence: 0,
       };
     }
 
     const data = await res.json();
     const content = (data as any).choices?.[0]?.message?.content || "";
-    const parsed = JSON.parse(content);
+
+    // Extract JSON from potential markdown code fences
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return {
+        reasoning: `Venice returned non-JSON: ${content.slice(0, 100)}`,
+        decision: "reject",
+        confidence: 0,
+      };
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
     return parsed as VeniceResponse;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
     return {
-      reasoning: `Venice error: ${err.message}`,
-      decision: "approve",
+      reasoning: `Venice error: ${message}`,
+      decision: "reject",
       confidence: 0,
     };
   }
