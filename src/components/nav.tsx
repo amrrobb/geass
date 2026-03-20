@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 
@@ -13,7 +14,8 @@ export function Nav() {
     <nav className="border-b border-geass-border bg-geass-card/50 backdrop-blur-sm">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-bold text-white tracking-tight">
+          <Link href="/" className="flex items-center gap-2 text-lg font-bold text-white tracking-tight">
+            <Image src="/logo.png" alt="GEASS" width={28} height={28} className="rounded-sm" />
             GEASS
           </Link>
           <div className="flex gap-4 text-sm text-gray-400">

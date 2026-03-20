@@ -19,11 +19,223 @@ function truncAddr(addr: string) {
   return addr.slice(0, 8) + "…" + addr.slice(-6);
 }
 
+function ResultCard({ data }: { data: any }) {
+  if (!data || typeof data !== "object") return null;
+
+  const isOk = data.ok === true;
+  const action = data.action || "";
+
+  // Status badge
+  const badge = data.error ? (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-900/40 text-geass-red border border-red-800/50">
+      <span className="text-base">✗</span> REJECTED
+    </span>
+  ) : isOk ? (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-900/40 text-geass-green border border-green-800/50">
+      <span className="text-base">✓</span> {action === "send" ? "APPROVED" : "SUCCESS"}
+    </span>
+  ) : null;
+
+  // Venice reasoning card
+  const veniceReasoning = data.veniceReasoning ? (
+    <div className="mt-3 p-3 bg-purple-900/20 border border-purple-800/30 rounded-lg">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-purple-400 text-xs font-medium">🧠 Private Reasoning (Venice.ai)</span>
+        {data.veniceConfidence != null && (
+          <span className="text-purple-500 text-xs">confidence: {data.veniceConfidence}</span>
+        )}
+      </div>
+      <p className="text-sm text-purple-200">{data.veniceReasoning}</p>
+    </div>
+  ) : null;
+
+  // Tx hash link
+  const txLink = data.txHash ? (
+    <a
+      href={`https://sepolia.basescan.org/tx/${data.txHash}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 mt-2 text-xs text-geass-accent hover:underline"
+    >
+      <span>🔗</span> View on Basescan: {data.txHash.slice(0, 10)}…{data.txHash.slice(-8)}
+    </a>
+  ) : null;
+
+  // Policy info
+  const policyInfo = data.policy ? (
+    <div className="mt-2 p-2 bg-geass-bg rounded border border-geass-border">
+      <span className="text-xs text-gray-500">Spending Policy: </span>
+      <span className="text-xs font-mono text-white">{data.policy.limit} ETH max</span>
+      <span className="text-xs text-gray-600 ml-2">({data.policy.enforced})</span>
+    </div>
+  ) : null;
+
+  // SIWA auth result
+  if (action === "authenticate" && data.siwa) {
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center gap-3">{badge}</div>
+        <div className="p-3 bg-geass-bg rounded-lg border border-geass-border">
+          <p className="text-xs text-gray-500 mb-1">Agent Address (SIWA identity)</p>
+          <p className="font-mono text-sm text-geass-accent">{data.siwa.agentAddress}</p>
+        </div>
+        <div className="p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
+          <p className="text-xs text-blue-400 font-medium mb-1">🔐 Signed SIWA Message</p>
+          <p className="text-xs text-blue-200 break-all">{data.siwa.signature?.slice(0, 40)}…</p>
+        </div>
+        <p className="text-xs text-gray-500">{data.siwa.note}</p>
+      </div>
+    );
+  }
+
+  // Send result (approved or rejected)
+  if (action === "send") {
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center justify-between">
+          {badge}
+          {data.amount && (
+            <span className="font-mono text-sm text-white">{data.amount} ETH → {truncAddr(data.recipient || "")}</span>
+          )}
+        </div>
+        {data.policyCheck && (
+          <p className="text-xs text-gray-400">{data.policyCheck}</p>
+        )}
+        {data.message && (
+          <p className="text-sm text-gray-300">{data.message}</p>
+        )}
+        {policyInfo}
+        {veniceReasoning}
+        {txLink}
+      </div>
+    );
+  }
+
+  // Setup result
+  if (action === "setup") {
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center gap-3">{badge}</div>
+        <p className="text-sm text-gray-300">{data.message}</p>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="p-2 bg-geass-bg rounded border border-geass-border">
+            <span className="text-gray-500">User Smart Account</span>
+            <p className="font-mono text-white mt-0.5">{truncAddr(data.userSmartAccount || "")}</p>
+          </div>
+          <div className="p-2 bg-geass-bg rounded border border-geass-border">
+            <span className="text-gray-500">Agent</span>
+            <p className="font-mono text-white mt-0.5">{truncAddr(data.agentAddress || "")}</p>
+          </div>
+        </div>
+        <div className="p-2 bg-geass-bg rounded border border-geass-border text-xs">
+          <span className="text-gray-500">Spending Policy: </span>
+          <span className="text-geass-accent font-mono">{data.spendingPolicy}</span>
+        </div>
+        <p className="text-xs text-gray-600">{data.enforcement}</p>
+        {data.note && <p className="text-xs text-yellow-500">{data.note}</p>}
+      </div>
+    );
+  }
+
+  // Balance result
+  if (action === "balance" && data.balances) {
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-3">{badge}</div>
+        {Object.entries(data.balances).map(([key, val]) => (
+          <div key={key} className="flex justify-between items-center p-2 bg-geass-bg rounded border border-geass-border text-xs">
+            <span className="text-gray-400">{key}</span>
+            <span className="font-mono text-white">{String(val)} ETH</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // History result
+  if (action === "history" && data.transactions) {
+    return (
+      <div className="mt-4 space-y-2">
+        <p className="text-xs text-gray-500">{data.total} transaction{data.total !== 1 ? "s" : ""}</p>
+        {data.transactions.length === 0 ? (
+          <p className="text-sm text-gray-600">No transactions yet</p>
+        ) : (
+          data.transactions.map((tx: any, i: number) => (
+            <div key={i} className="flex items-center justify-between p-2 bg-geass-bg rounded border border-geass-border text-xs">
+              <div className="flex items-center gap-2">
+                <span className={tx.status === "approved" ? "text-geass-green" : "text-geass-red"}>
+                  {tx.status === "approved" ? "✓" : "✗"}
+                </span>
+                <span className="font-mono text-white">{tx.amount} ETH</span>
+                <span className="text-gray-600">→ {truncAddr(tx.to)}</span>
+              </div>
+              {tx.txHash && (
+                <a href={`https://sepolia.basescan.org/tx/${tx.txHash}`} target="_blank" rel="noopener noreferrer" className="text-geass-accent hover:underline">
+                  tx ↗
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
+  // Help result
+  if (action === "help" && data.commands) {
+    return (
+      <div className="mt-4 space-y-1">
+        {data.commands.map((cmd: string, i: number) => (
+          <div key={i} className="text-xs p-1.5 rounded">
+            <span className="text-geass-accent font-mono">{cmd.split(" — ")[0]}</span>
+            <span className="text-gray-500"> — {cmd.split(" — ")[1]}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Status result
+  if (action === "status") {
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-3">{badge}</div>
+        {Object.entries(data).filter(([k]) => !["ok", "action"].includes(k)).map(([key, val]) => (
+          <div key={key} className="flex justify-between items-center text-xs py-1 border-b border-geass-border/50">
+            <span className="text-gray-500">{key}</span>
+            <span className="font-mono text-white">{String(val)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Error fallback
+  if (data.error) {
+    return (
+      <div className="mt-4">
+        <div className="flex items-center gap-3 mb-2">{badge}</div>
+        <p className="text-sm text-red-300">{data.error}</p>
+        {data.message && <p className="text-xs text-gray-500 mt-1">{data.message}</p>}
+        {policyInfo}
+        {veniceReasoning}
+      </div>
+    );
+  }
+
+  // Generic fallback — pretty JSON
+  return (
+    <pre className="mt-4 p-4 bg-geass-bg border border-geass-border rounded-lg text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
 export default function Home() {
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [command, setCommand] = useState("");
-  const [output, setOutput] = useState("");
+  const [result, setResult] = useState<any>(null);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
@@ -40,7 +252,7 @@ export default function Home() {
     e.preventDefault();
     if (!command.trim() || running) return;
     setRunning(true);
-    setOutput("");
+    setResult(null);
     try {
       const res = await fetch("/api/agent/run", {
         method: "POST",
@@ -48,10 +260,10 @@ export default function Home() {
         body: JSON.stringify({ command }),
       });
       const json = await res.json();
-      setOutput(JSON.stringify(json, null, 2));
+      setResult(json);
       fetch("/api/agent/status").then((r) => r.json()).then(setStatus).catch(() => {});
     } catch (err: any) {
-      setOutput(`Error: ${err.message}`);
+      setResult({ ok: false, error: err.message });
     } finally {
       setRunning(false);
     }
@@ -156,11 +368,7 @@ export default function Home() {
           </button>
         </form>
 
-        {output && (
-          <pre className="mt-4 p-4 bg-geass-bg border border-geass-border rounded-lg text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
-            {output}
-          </pre>
-        )}
+        {result && <ResultCard data={result} />}
       </div>
 
       {/* How it works */}
