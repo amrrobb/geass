@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { createWalletClient, custom, type Address, type Hex } from "viem";
-import { baseSepolia } from "viem/chains";
+import { getWalletClient } from "@wagmi/core";
+import { config } from "@/lib/wagmi";
+import type { Address, Hex } from "viem";
 import {
   generateEphemeralKey,
   createSpendingDelegation,
@@ -274,11 +275,7 @@ export default function Home() {
           if (!isConnected || !address) throw new Error("Connect your wallet first.");
           if (chainId !== 84532) throw new Error("Switch to Base Sepolia network first. Use the chain selector in the top right.");
 
-          const walletClient = createWalletClient({
-            account: address,
-            chain: baseSepolia,
-            transport: custom((window as any).ethereum),
-          });
+          const walletClient = await getWalletClient(config, { chainId: 84532 });
 
           const ephemeral = generateEphemeralKey();
           const del = await createSpendingDelegation({
@@ -454,11 +451,7 @@ export default function Home() {
         case "set-policy": {
           if (!session || !address) throw new Error("Run 'setup' first. Make sure wallet is on Base Sepolia.");
 
-          const policyWalletClient = createWalletClient({
-            account: address,
-            chain: baseSepolia,
-            transport: custom((window as any).ethereum),
-          });
+          const policyWalletClient = await getWalletClient(config, { chainId: 84532 });
 
           const del = await createSpendingDelegation({
             walletClient: policyWalletClient,
