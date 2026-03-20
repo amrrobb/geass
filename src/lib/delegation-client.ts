@@ -121,6 +121,24 @@ export async function createSpendingDelegation(opts: {
   };
 }
 
+// ── Fund ephemeral agent with gas ───────────────────────────────────
+
+export async function fundAgentGas(opts: {
+  walletClient: WalletClient;
+  agentAddress: Address;
+  amountEth?: string;
+}) {
+  const amount = opts.amountEth || "0.001"; // 0.001 ETH for gas
+  const hash = await opts.walletClient.sendTransaction({
+    account: opts.walletClient.account!,
+    to: opts.agentAddress,
+    value: parseEther(amount),
+    chain: baseSepolia,
+  });
+  await publicClient.waitForTransactionReceipt({ hash });
+  return hash;
+}
+
 // ── Agent Execution (ephemeral key redeems delegation) ──────────────
 
 export async function executeWithDelegation(opts: {

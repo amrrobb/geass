@@ -9,6 +9,7 @@ import {
   generateEphemeralKey,
   createSpendingDelegation,
   executeWithDelegation,
+  fundAgentGas,
   checkPolicy,
   signSiwaMessage,
   getBalance,
@@ -284,6 +285,9 @@ export default function Home() {
             maxEth: "0.01",
           });
 
+          // Fund ephemeral agent with gas (user pays ~0.001 ETH for agent gas)
+          await fundAgentGas({ walletClient, agentAddress: ephemeral.address, amountEth: "0.001" });
+
           const saBalance = await getBalance(del.userSmartAccount as Address);
           const funded = parseFloat(saBalance) > 0;
 
@@ -369,7 +373,7 @@ export default function Home() {
             break;
           }
 
-          // Execute via delegation (ephemeral key redeems)
+          // Execute via delegation (ephemeral agent key redeems, enforced on-chain)
           const txResult = await executeWithDelegation({
             agentPrivateKey: session.agentPrivateKey,
             delegation: session.delegation,
