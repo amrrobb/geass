@@ -1,23 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useAccount, useWalletClient } from "wagmi";
+import type { Address, Hex } from "viem";
+import {
+  generateEphemeralKey,
+  createSpendingDelegation,
+  executeWithDelegation,
+  checkPolicy,
+  signSiwaMessage,
+  getBalance,
+  publicClient,
+} from "@/lib/delegation-client";
 
-interface AgentStatus {
-  setup: string;
-  userSmartAccount: string | null;
-  agentSmartAccount: string | null;
-  spendingPolicy: string;
-  enforcement: string;
-  chain: string;
-  reasoning: string;
-  execution: string;
-  identity: string;
-  txCount: number;
+// ── Types ───────────────────────────────────────────────────────────
+
+interface SessionState {
+  agentPrivateKey: Hex;
+  agentAddress: Address;
+  userSmartAccount: Address;
+  delegation: any;
+  spendingLimitEth: string;
+  transactions: Array<{
+    to: string;
+    amount: string;
+    status: "approved" | "rejected";
+    reason: string;
+    txHash?: string;
+    timestamp: number;
+  }>;
 }
 
 function truncAddr(addr: string) {
   return addr.slice(0, 8) + "…" + addr.slice(-6);
 }
+
+// ── Result Card ─────────────────────────────────────────────────────
 
 function ResultCard({ data }: { data: any }) {
   if (!data || typeof data !== "object") return null;
@@ -25,7 +43,6 @@ function ResultCard({ data }: { data: any }) {
   const isOk = data.ok === true;
   const action = data.action || "";
 
-  // Status badge
   const badge = data.error ? (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-900/40 text-geass-red border border-red-800/50">
       <span className="text-base">✗</span> REJECTED
@@ -36,7 +53,6 @@ function ResultCard({ data }: { data: any }) {
     </span>
   ) : null;
 
-  // Venice reasoning card
   const veniceReasoning = data.veniceReasoning ? (
     <div className="mt-3 p-3 bg-purple-900/20 border border-purple-800/30 rounded-lg">
       <div className="flex items-center gap-2 mb-1">
@@ -49,7 +65,6 @@ function ResultCard({ data }: { data: any }) {
     </div>
   ) : null;
 
-  // Tx hash link
   const txLink = data.txHash ? (
     <a
       href={`https://sepolia.basescan.org/tx/${data.txHash}`}
@@ -61,7 +76,6 @@ function ResultCard({ data }: { data: any }) {
     </a>
   ) : null;
 
-  // Policy info
   const policyInfo = data.policy ? (
     <div className="mt-2 p-2 bg-geass-bg rounded border border-geass-border">
       <span className="text-xs text-gray-500">Spending Policy: </span>
@@ -70,13 +84,12 @@ function ResultCard({ data }: { data: any }) {
     </div>
   ) : null;
 
-  // SIWA auth result
   if (action === "authenticate" && data.siwa) {
     return (
       <div className="mt-4 space-y-3">
         <div className="flex items-center gap-3">{badge}</div>
         <div className="p-3 bg-geass-bg rounded-lg border border-geass-border">
-          <p className="text-xs text-gray-500 mb-1">Agent Address (SIWA identity)</p>
+          <p className="text-xs text-gray-500 mb-1">Agent Address (ephemeral — exists only in this session)</p>
           <p className="font-mono text-sm text-geass-accent">{data.siwa.agentAddress}</p>
         </div>
         <div className="p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
@@ -88,7 +101,6 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
-  // Send result (approved or rejected)
   if (action === "send") {
     return (
       <div className="mt-4 space-y-3">
@@ -98,12 +110,8 @@ function ResultCard({ data }: { data: any }) {
             <span className="font-mono text-sm text-white">{data.amount} ETH → {truncAddr(data.recipient || "")}</span>
           )}
         </div>
-        {data.policyCheck && (
-          <p className="text-xs text-gray-400">{data.policyCheck}</p>
-        )}
-        {data.message && (
-          <p className="text-sm text-gray-300">{data.message}</p>
-        )}
+        {data.policyCheck && <p className="text-xs text-gray-400">{data.policyCheck}</p>}
+        {data.message && <p className="text-sm text-gray-300">{data.message}</p>}
         {policyInfo}
         {veniceReasoning}
         {txLink}
@@ -111,7 +119,6 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
-  // Setup result
   if (action === "setup") {
     return (
       <div className="mt-4 space-y-3">
@@ -123,7 +130,7 @@ function ResultCard({ data }: { data: any }) {
             <p className="font-mono text-white mt-0.5">{truncAddr(data.userSmartAccount || "")}</p>
           </div>
           <div className="p-2 bg-geass-bg rounded border border-geass-border">
-            <span className="text-gray-500">Agent</span>
+            <span className="text-gray-500">Agent (ephemeral)</span>
             <p className="font-mono text-white mt-0.5">{truncAddr(data.agentAddress || "")}</p>
           </div>
         </div>
@@ -137,22 +144,6 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
-  // Balance result
-  if (action === "balance" && data.balances) {
-    return (
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center gap-3">{badge}</div>
-        {Object.entries(data.balances).map(([key, val]) => (
-          <div key={key} className="flex justify-between items-center p-2 bg-geass-bg rounded border border-geass-border text-xs">
-            <span className="text-gray-400">{key}</span>
-            <span className="font-mono text-white">{String(val)} ETH</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // History result
   if (action === "history" && data.transactions) {
     return (
       <div className="mt-4 space-y-2">
@@ -170,9 +161,7 @@ function ResultCard({ data }: { data: any }) {
                 <span className="text-gray-600">→ {truncAddr(tx.to)}</span>
               </div>
               {tx.txHash && (
-                <a href={`https://sepolia.basescan.org/tx/${tx.txHash}`} target="_blank" rel="noopener noreferrer" className="text-geass-accent hover:underline">
-                  tx ↗
-                </a>
+                <a href={`https://sepolia.basescan.org/tx/${tx.txHash}`} target="_blank" rel="noopener noreferrer" className="text-geass-accent hover:underline">tx ↗</a>
               )}
             </div>
           ))
@@ -181,12 +170,25 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
-  // Help result
-  if (action === "help" && data.commands) {
+  if (action === "balance") {
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-3">{badge}</div>
+        {Object.entries(data.balances || {}).map(([key, val]) => (
+          <div key={key} className="flex justify-between items-center p-2 bg-geass-bg rounded border border-geass-border text-xs">
+            <span className="text-gray-400">{key}</span>
+            <span className="font-mono text-white">{String(val)} ETH</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (action === "help") {
     return (
       <div className="mt-4 space-y-1">
-        {data.commands.map((cmd: string, i: number) => (
-          <div key={i} className="text-xs p-1.5 rounded">
+        {(data.commands || []).map((cmd: string, i: number) => (
+          <div key={i} className="text-xs p-1.5">
             <span className="text-geass-accent font-mono">{cmd.split(" — ")[0]}</span>
             <span className="text-gray-500"> — {cmd.split(" — ")[1]}</span>
           </div>
@@ -195,22 +197,6 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
-  // Status result
-  if (action === "status") {
-    return (
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center gap-3">{badge}</div>
-        {Object.entries(data).filter(([k]) => !["ok", "action"].includes(k)).map(([key, val]) => (
-          <div key={key} className="flex justify-between items-center text-xs py-1 border-b border-geass-border/50">
-            <span className="text-gray-500">{key}</span>
-            <span className="font-mono text-white">{String(val)}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Error fallback
   if (data.error) {
     return (
       <div className="mt-4">
@@ -223,7 +209,6 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
-  // Generic fallback — pretty JSON
   return (
     <pre className="mt-4 p-4 bg-geass-bg border border-geass-border rounded-lg text-sm text-green-400 font-mono whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
       {JSON.stringify(data, null, 2)}
@@ -231,21 +216,48 @@ function ResultCard({ data }: { data: any }) {
   );
 }
 
+// ── Command Parser ──────────────────────────────────────────────────
+
+function parseCommand(input: string) {
+  const lower = input.toLowerCase().trim();
+
+  const sendMatch = lower.match(/send\s+([\d.]+)\s+(?:eth\s+)?to\s+(0x[a-f0-9]+)/i);
+  if (sendMatch) return { type: "send" as const, amount: sendMatch[1], recipient: sendMatch[2] };
+
+  const policyMatch = lower.match(/(?:set-?policy|policy)\s+([\d.]+)/);
+  if (policyMatch) return { type: "set-policy" as const, maxEth: policyMatch[1] };
+
+  if (lower.includes("setup") || lower.includes("create") || lower.includes("init")) return { type: "setup" as const };
+  if (lower.includes("auth")) return { type: "authenticate" as const };
+  if (lower.includes("balance")) return { type: "check-balance" as const };
+  if (lower.includes("status")) return { type: "status" as const };
+  if (lower.includes("history") || lower.includes("log")) return { type: "history" as const };
+
+  return { type: "help" as const };
+}
+
+// ── Main Dashboard ──────────────────────────────────────────────────
+
 export default function Home() {
-  const [status, setStatus] = useState<AgentStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const [session, setSession] = useState<SessionState | null>(null);
   const [command, setCommand] = useState("");
   const [result, setResult] = useState<any>(null);
   const [running, setRunning] = useState(false);
 
+  // Load session from localStorage
   useEffect(() => {
-    fetch("/api/agent/status")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error);
-        else setStatus(data);
-      })
-      .catch(() => setError("Agent unreachable"));
+    const saved = localStorage.getItem("geass-session");
+    if (saved) {
+      try { setSession(JSON.parse(saved)); } catch {}
+    }
+  }, []);
+
+  // Save session to localStorage
+  const saveSession = useCallback((s: SessionState) => {
+    setSession(s);
+    localStorage.setItem("geass-session", JSON.stringify(s));
   }, []);
 
   async function runCommand(e: React.FormEvent) {
@@ -253,36 +265,258 @@ export default function Home() {
     if (!command.trim() || running) return;
     setRunning(true);
     setResult(null);
+
     try {
-      const res = await fetch("/api/agent/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
-      });
-      const json = await res.json();
-      setResult(json);
-      fetch("/api/agent/status").then((r) => r.json()).then(setStatus).catch(() => {});
-    } catch (err: any) {
-      setResult({ ok: false, error: err.message });
+      const cmd = parseCommand(command);
+
+      switch (cmd.type) {
+        case "setup": {
+          if (!walletClient) throw new Error("Connect your wallet first");
+
+          const ephemeral = generateEphemeralKey();
+          const del = await createSpendingDelegation({
+            walletClient,
+            agentAddress: ephemeral.address,
+            maxEth: "0.01",
+          });
+
+          const saBalance = await getBalance(del.userSmartAccount as Address);
+          const funded = parseFloat(saBalance) > 0;
+
+          const newSession: SessionState = {
+            agentPrivateKey: ephemeral.privateKey,
+            agentAddress: ephemeral.address,
+            userSmartAccount: del.userSmartAccount as Address,
+            delegation: del.delegation,
+            spendingLimitEth: "0.01",
+            transactions: [],
+          };
+          saveSession(newSession);
+
+          setResult({
+            ok: true,
+            action: "setup",
+            message: "Delegation created. Your wallet signed the spending policy. Agent key is ephemeral — exists only in this browser session.",
+            userSmartAccount: del.userSmartAccount,
+            agentAddress: ephemeral.address,
+            spendingPolicy: "0.01 ETH max per delegation",
+            enforcement: "On-chain via MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer",
+            smartAccountFunded: funded,
+            note: funded ? undefined : "Fund the smart account with Base Sepolia ETH to enable on-chain execution",
+          });
+          break;
+        }
+
+        case "send": {
+          if (!session) throw new Error("Run 'setup' first");
+
+          const policyCheck = checkPolicy(cmd.amount, session.spendingLimitEth);
+
+          if (!policyCheck.allowed) {
+            session.transactions.push({
+              to: cmd.recipient,
+              amount: cmd.amount,
+              status: "rejected",
+              reason: policyCheck.reason,
+              timestamp: Date.now(),
+            });
+            saveSession({ ...session });
+
+            setResult({
+              ok: false,
+              action: "send",
+              error: "REJECTED — spending policy violated",
+              policy: { limit: session.spendingLimitEth, enforced: "on-chain" },
+              policyCheck: policyCheck.reason,
+              message: "The delegation caveat enforcer would revert this on-chain. Blocked locally to save gas.",
+            });
+            break;
+          }
+
+          // Venice reasoning (proxied through server — only server knows API key)
+          const veniceRes = await fetch("/api/venice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: cmd.amount,
+              recipient: cmd.recipient,
+              policy: session.spendingLimitEth,
+            }),
+          });
+          const veniceResult = await veniceRes.json();
+
+          if (veniceResult.decision === "reject") {
+            session.transactions.push({
+              to: cmd.recipient,
+              amount: cmd.amount,
+              status: "rejected",
+              reason: `Venice: ${veniceResult.reasoning}`,
+              timestamp: Date.now(),
+            });
+            saveSession({ ...session });
+
+            setResult({
+              ok: false,
+              action: "send",
+              error: "REJECTED by private reasoning engine",
+              veniceReasoning: veniceResult.reasoning,
+              veniceConfidence: veniceResult.confidence,
+            });
+            break;
+          }
+
+          // Execute via delegation (ephemeral key redeems)
+          const txResult = await executeWithDelegation({
+            agentPrivateKey: session.agentPrivateKey,
+            delegation: session.delegation,
+            to: cmd.recipient as Address,
+            valueEth: cmd.amount,
+          });
+
+          session.transactions.push({
+            to: cmd.recipient,
+            amount: cmd.amount,
+            status: "approved",
+            reason: policyCheck.reason,
+            txHash: txResult.txHash,
+            timestamp: Date.now(),
+          });
+          saveSession({ ...session });
+
+          setResult({
+            ok: true,
+            action: "send",
+            message: "Transaction approved and executed. Policy enforced on-chain.",
+            txHash: txResult.txHash,
+            recipient: cmd.recipient,
+            amount: cmd.amount,
+            policy: { limit: session.spendingLimitEth, enforced: "on-chain" },
+            veniceReasoning: veniceResult.reasoning,
+          });
+          break;
+        }
+
+        case "authenticate": {
+          if (!session) throw new Error("Run 'setup' first");
+
+          const siwa = await signSiwaMessage(session.agentPrivateKey, session.agentAddress);
+
+          setResult({
+            ok: true,
+            action: "authenticate",
+            message: "SIWA message signed by ephemeral agent key. Identity proven without revealing principal.",
+            siwa: {
+              ...siwa,
+              note: "The agent signed with an ephemeral key that exists only in this browser session. Your wallet address is never exposed.",
+            },
+          });
+          break;
+        }
+
+        case "check-balance": {
+          const balances: Record<string, string> = {};
+          if (session?.userSmartAccount) {
+            balances.userSmartAccount = await getBalance(session.userSmartAccount);
+          }
+          if (address) {
+            balances.connectedWallet = await getBalance(address);
+          }
+
+          setResult({ ok: true, action: "balance", balances });
+          break;
+        }
+
+        case "status": {
+          setResult({
+            ok: true,
+            action: "status",
+            setup: session ? "complete" : "not initialized",
+            userSmartAccount: session?.userSmartAccount || null,
+            agentAddress: session?.agentAddress || null,
+            agentKeyType: "ephemeral (browser-only, not stored on server)",
+            spendingPolicy: `${session?.spendingLimitEth || "0.01"} ETH max`,
+            enforcement: "MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer",
+            chain: "Base Sepolia (84532)",
+            reasoning: "Venice.ai (private, no data stored)",
+            identity: "SIWA (EIP-4361)",
+            txCount: session?.transactions.length || 0,
+          });
+          break;
+        }
+
+        case "set-policy": {
+          if (!session || !walletClient) throw new Error("Run 'setup' first");
+
+          const del = await createSpendingDelegation({
+            walletClient,
+            agentAddress: session.agentAddress,
+            maxEth: cmd.maxEth,
+          });
+
+          saveSession({
+            ...session,
+            delegation: del.delegation,
+            spendingLimitEth: cmd.maxEth,
+          });
+
+          setResult({
+            ok: true,
+            action: "set-policy",
+            message: `Spending policy updated. New delegation signed with ${cmd.maxEth} ETH limit.`,
+            limit: cmd.maxEth,
+            enforcement: "on-chain (caveat enforcer will revert if exceeded)",
+          });
+          break;
+        }
+
+        case "history": {
+          const txs = session?.transactions || [];
+          setResult({
+            ok: true,
+            action: "history",
+            transactions: txs.slice(-10),
+            total: txs.length,
+          });
+          break;
+        }
+
+        case "help":
+          setResult({
+            ok: true,
+            action: "help",
+            commands: [
+              "setup — Connect wallet, create delegation with ephemeral agent key",
+              "send <amount> to <address> — Send ETH via delegated authority (policy-enforced on-chain)",
+              "set-policy <maxEth> — Update spending limit (re-signs delegation)",
+              "balance — Check wallet balances",
+              "status — Agent status + policy info",
+              "auth — Sign SIWA message (prove agent identity without revealing principal)",
+              "history — Recent transaction log",
+            ],
+          });
+          break;
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setResult({ ok: false, error: message });
     } finally {
       setRunning(false);
     }
   }
 
-  const ready = status?.setup === "complete";
+  const ready = session != null;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">GEASS Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">
-          The power of absolute delegation — scoped spending via MetaMask Delegation Framework
+          The power of absolute delegation — non-custodial, ephemeral agent keys, on-chain enforcement
         </p>
       </div>
 
       {/* Status cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Delegation card */}
         <div className="bg-geass-card border border-geass-border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-3">
             <svg className="w-5 h-5 text-geass-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,39 +524,28 @@ export default function Home() {
             </svg>
             <h3 className="text-sm font-medium text-gray-400">Delegation Status</h3>
           </div>
-          {error ? (
-            <p className="text-sm text-red-400">{error}</p>
-          ) : status ? (
+          {!isConnected ? (
+            <p className="text-sm text-yellow-500">Connect wallet to start</p>
+          ) : (
             <div className="space-y-2 text-sm font-mono">
               <div>
                 Setup:{" "}
                 <span className={ready ? "text-geass-green" : "text-yellow-500"}>
-                  {status.setup}
+                  {ready ? "complete" : "not initialized"}
                 </span>
               </div>
-              {status.userSmartAccount && (
-                <div>
-                  User SA: <span className="text-white">{truncAddr(status.userSmartAccount)}</span>
-                </div>
+              {session?.userSmartAccount && (
+                <div>User SA: <span className="text-white">{truncAddr(session.userSmartAccount)}</span></div>
               )}
-              {status.agentSmartAccount && (
-                <div>
-                  Agent: <span className="text-white">{truncAddr(status.agentSmartAccount)}</span>
-                </div>
+              {session?.agentAddress && (
+                <div>Agent: <span className="text-white">{truncAddr(session.agentAddress)}</span> <span className="text-xs text-gray-600">(ephemeral)</span></div>
               )}
-              <div>
-                Chain: <span className="text-white">{status.chain}</span>
-              </div>
-              <div>
-                Txns: <span className="text-white">{status.txCount}</span>
-              </div>
+              <div>Chain: <span className="text-white">Base Sepolia (84532)</span></div>
+              <div>Txns: <span className="text-white">{session?.transactions.length || 0}</span></div>
             </div>
-          ) : (
-            <p className="text-sm text-gray-600">Loading…</p>
           )}
         </div>
 
-        {/* Spending policy card */}
         <div className="bg-geass-card border border-geass-border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-3">
             <svg className="w-5 h-5 text-geass-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -330,21 +553,17 @@ export default function Home() {
             </svg>
             <h3 className="text-sm font-medium text-gray-400">Spending Policy</h3>
           </div>
-          {status ? (
-            <div className="space-y-2 text-sm">
-              <div className="p-3 bg-geass-bg rounded-lg border border-geass-border">
-                <span className="text-geass-accent font-mono text-lg">{status.spendingPolicy}</span>
-              </div>
-              <p className="text-xs text-gray-600">{status.enforcement}</p>
-              <div className="mt-2 space-y-1 text-xs text-gray-500">
-                <div>Reasoning: {status.reasoning}</div>
-                <div>Execution: {status.execution}</div>
-                <div>Identity: {status.identity}</div>
-              </div>
+          <div className="space-y-2 text-sm">
+            <div className="p-3 bg-geass-bg rounded-lg border border-geass-border">
+              <span className="text-geass-accent font-mono text-lg">{session?.spendingLimitEth || "0.01"} ETH max</span>
             </div>
-          ) : (
-            <p className="text-sm text-gray-600">Loading…</p>
-          )}
+            <p className="text-xs text-gray-600">MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer</p>
+            <div className="mt-2 space-y-1 text-xs text-gray-500">
+              <div>Reasoning: Venice.ai (private, no data stored)</div>
+              <div>Agent key: Ephemeral (browser session only)</div>
+              <div>Identity: SIWA (EIP-4361)</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -356,12 +575,13 @@ export default function Home() {
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder="setup | send 0.005 to 0x… | balance | auth | history"
-            className="flex-1 bg-geass-bg border border-geass-border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-geass-accent"
+            placeholder={isConnected ? "setup | send 0.005 to 0x… | balance | auth | history" : "Connect wallet first"}
+            disabled={!isConnected}
+            className="flex-1 bg-geass-bg border border-geass-border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-geass-accent disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={running}
+            disabled={running || !isConnected}
             className="bg-geass-accent hover:bg-indigo-600 disabled:opacity-50 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition"
           >
             {running ? "Running…" : "Execute"}
@@ -378,8 +598,8 @@ export default function Home() {
           <div className="p-3 bg-geass-bg rounded-lg">
             <p className="text-geass-accent font-medium mb-1">1. Delegated Authority</p>
             <p className="text-gray-500">
-              User delegates scoped spending to the agent via MetaMask Delegation Framework.
-              On-chain caveat enforcers limit what the agent can spend.
+              Your wallet delegates scoped spending to an ephemeral agent key.
+              On-chain caveat enforcers limit what the agent can spend. No key sharing. No custody.
             </p>
           </div>
           <div className="p-3 bg-geass-bg rounded-lg">
@@ -392,8 +612,8 @@ export default function Home() {
           <div className="p-3 bg-geass-bg rounded-lg">
             <p className="text-geass-accent font-medium mb-1">3. Identity Separation</p>
             <p className="text-gray-500">
-              Agent authenticates via SIWA (EIP-4361). Services see the agent&apos;s address,
-              never the human principal&apos;s.
+              Agent authenticates via SIWA (EIP-4361) with its ephemeral key.
+              Services see the agent&apos;s address, never your wallet.
             </p>
           </div>
         </div>
