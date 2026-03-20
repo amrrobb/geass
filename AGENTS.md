@@ -35,10 +35,12 @@ Financial privacy agent — delegated spending with private reasoning and identi
 ## Architecture
 
 ```
-User → MetaMask Delegation → Agent Smart Account → Venice.ai (private reasoning) → On-chain execution → SIWA auth
+User MetaMask → Delegation (on-chain) → Ephemeral Agent Key (browser) → Venice.ai (server proxy) → On-chain execution → SIWA auth (browser)
 ```
 
-The user delegates scoped spending authority to the agent via MetaMask Delegation Framework. The agent reasons privately via Venice.ai before executing. Caveat enforcers on-chain block any transaction exceeding policy. SIWA provides identity separation.
+**Non-custodial: no server holds user keys or agent keys.**
+
+The agent key is **ephemeral** — generated per-session in the browser and never sent to a server. The user's MetaMask wallet signs a scoped delegation to this ephemeral key. The agent redeems the delegation client-side. The server's only role is proxying Venice.ai API calls (to keep the API key out of the browser). State is stored in localStorage. When you close the tab, the agent key is gone — zero residual trust.
 
 ---
 

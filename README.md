@@ -6,7 +6,16 @@
 
 ## Problem
 
-Agents leak metadata. Every on-chain action — payments, swaps, subscriptions — is publicly attributable to the human who funded the agent. Spending patterns, contact lists, and financial habits are all exposed. No privacy primitive exists for agents.
+**Meet Alice.** She wants an AI agent to manage her DeFi portfolio. Three things keep her up at night:
+
+1. **No spending boundary** — She gives the agent her private key. The agent has full access to her wallet. One bug, one exploit, and everything is gone.
+2. **No private thinking** — The agent calls an LLM to reason about her transactions. The LLM provider logs every prompt. Now her financial strategy is in someone else's database.
+3. **No identity separation** — Every service the agent authenticates to sees Alice's wallet address. Her on-chain identity is fully exposed to every counterparty.
+
+**With GEASS:**
+- **Scoped delegation** — Alice delegates only what she approves (e.g., 0.01 ETH max) to an ephemeral agent key. The key is generated in her browser, never leaves it, and is gone when she closes the tab.
+- **Private reasoning** — Venice.ai runs inference without storing prompts or outputs. The agent thinks, but nobody else sees what it thought.
+- **Identity separation** — SIWA authenticates the agent to services using the ephemeral key. Services see the agent, never Alice.
 
 ## Solution
 
@@ -45,12 +54,24 @@ GEASS is a financial privacy agent on Base Sepolia. Spending authority is **dele
 
 ## How It Works
 
-1. User creates a **smart account** and delegates scoped spending to the agent
+1. User connects **MetaMask** and delegates scoped spending to an **ephemeral agent key generated in the browser**
 2. **NativeTokenTransferAmountEnforcer** limits ETH per delegation on-chain
-3. Agent checks policy locally (fast fail), then reasons via **Venice.ai** privately
-4. If approved, executes via **delegation redemption** — enforced on-chain
+3. Agent checks policy locally (fast fail), then reasons via **Venice.ai** privately (server only proxies the API call)
+4. If approved, the **ephemeral key redeems the delegation client-side** — enforced on-chain
 5. If rejected, the caveat enforcer **reverts** — no transaction, no gas wasted
-6. Agent authenticates via **SIWA** — proves identity without revealing the principal
+6. Agent authenticates via **SIWA** using the ephemeral key — proves identity without revealing the principal
+
+## Non-Custodial by Design
+
+GEASS never holds your keys. The architecture is deliberately zero-custody:
+
+- **Agent key is ephemeral** — generated per-session in the browser via `crypto.getRandomValues()`. It never touches a server.
+- **User signs delegation with MetaMask** — the user's wallet authorizes scoped spending to the ephemeral key. No server-side `PRIVATE_KEY`.
+- **Delegation redemption is client-side** — the ephemeral key signs and submits transactions directly from the browser.
+- **SIWA is signed with the ephemeral key** — authentication happens in the browser, never leaves it.
+- **Venice reasoning is the only server-side call** — the Next.js API route proxies the Venice API key so it isn't exposed to the browser.
+- **State lives in localStorage** — delegation details, transaction history, session data. No server filesystem.
+- **Close the tab, the agent key is gone** — zero residual trust. No key to steal, no session to hijack, no cleanup needed.
 
 ## Demo Script (2 minutes)
 
@@ -79,7 +100,7 @@ GEASS is a financial privacy agent on Base Sepolia. Spending authority is **dele
 
 ```bash
 git clone https://github.com/amrrobb/geass && cd geass
-cp .env.example .env    # fill in PRIVATE_KEY, VENICE_API_KEY
+cp .env.example .env    # fill in VENICE_API_KEY (no private key needed)
 npm install
 npm run dev             # http://localhost:3000
 ```
@@ -111,9 +132,11 @@ npm run agent -- history                  # recent transaction log
 
 ## What Makes This Different
 
+- **Non-custodial**: No server holds user keys or agent keys. The agent key is ephemeral, browser-only, and gone when you close the tab.
+- **No key sharing**: The user never gives the agent a private key. MetaMask signs a delegation; the agent gets scoped authority, not key access.
 - **On-chain policy enforcement**: Spending limits enforced by smart contract caveat enforcers, not app code
 - **Private cognition**: Venice.ai runs inference without storing prompts or outputs
-- **Identity separation**: The agent authenticates via SIWA — services see the agent's address, never the principal's
+- **Identity separation**: The agent authenticates via SIWA with the ephemeral key — services see the agent's address, never the principal's
 - **Not a wrapper**: The agent reasons about transactions privately, then executes via delegated authority with on-chain enforcement
 
 ## Key Addresses (Base Sepolia)
