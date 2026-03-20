@@ -239,8 +239,8 @@ function parseCommand(input: string) {
 // ── Main Dashboard ──────────────────────────────────────────────────
 
 export default function Home() {
-  const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient({ chainId: 84532 });
   const [session, setSession] = useState<SessionState | null>(null);
   const [command, setCommand] = useState("");
   const [result, setResult] = useState<any>(null);
@@ -271,7 +271,7 @@ export default function Home() {
 
       switch (cmd.type) {
         case "setup": {
-          if (!walletClient) throw new Error("Connect your wallet first");
+          if (!isConnected || !walletClient) throw new Error("Wallet not ready. Disconnect and reconnect, then try again.");
 
           const ephemeral = generateEphemeralKey();
           const del = await createSpendingDelegation({
@@ -445,7 +445,7 @@ export default function Home() {
         }
 
         case "set-policy": {
-          if (!session || !walletClient) throw new Error("Run 'setup' first");
+          if (!session || !walletClient) throw new Error("Run 'setup' first. Make sure wallet is on Base Sepolia.");
 
           const del = await createSpendingDelegation({
             walletClient,
