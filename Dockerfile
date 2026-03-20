@@ -25,9 +25,7 @@ RUN adduser --system --uid 1001 nextjs
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# public/ dir is optional — only copy if it exists
-# Create empty public dir as fallback
-RUN mkdir -p ./public
+COPY --from=builder /app/public ./public
 
 # Copy agent source (needed for CLI usage, though API routes import directly)
 COPY --from=builder /app/agent ./agent
