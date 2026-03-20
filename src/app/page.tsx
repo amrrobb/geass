@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAccount, useWalletClient, useSwitchChain } from "wagmi";
-import type { Address, Hex } from "viem";
+import { useAccount } from "wagmi";
+import { createWalletClient, custom, type Address, type Hex } from "viem";
+import { baseSepolia } from "viem/chains";
 import {
   generateEphemeralKey,
   createSpendingDelegation,
@@ -240,9 +241,6 @@ function parseCommand(input: string) {
 
 export default function Home() {
   const { address, isConnected, chainId } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  const { switchChainAsync } = useSwitchChain();
-  const wrongChain = isConnected && chainId !== 84532;
   const [session, setSession] = useState<SessionState | null>(null);
   const [command, setCommand] = useState("");
   const [result, setResult] = useState<any>(null);
@@ -273,12 +271,14 @@ export default function Home() {
 
       switch (cmd.type) {
         case "setup": {
-          if (!isConnected) throw new Error("Connect your wallet first.");
-          if (chainId !== 84532) {
-            await switchChainAsync({ chainId: 84532 });
-            throw new Error("Switched to Base Sepolia. Please run setup again.");
-          }
-          if (!walletClient) throw new Error("Wallet client not ready. Please try again in a moment.");
+          if (!isConnected || !address) throw new Error("Connect your wallet first.");
+          if (chainId !== 84532) throw new Error("Switch to Base Sepolia network first. Use the chain selector in the top right.");
+
+          const walletClient = createWalletClient({
+            account: address,
+            chain: baseSepolia,
+            transport: custom((window as any).ethereum),
+          });
 
           const ephemeral = generateEphemeralKey();
           const del = await createSpendingDelegation({
@@ -452,10 +452,16 @@ export default function Home() {
         }
 
         case "set-policy": {
-          if (!session || !walletClient) throw new Error("Run 'setup' first. Make sure wallet is on Base Sepolia.");
+          if (!session || !address) throw new Error("Run 'setup' first. Make sure wallet is on Base Sepolia.");
+
+          const policyWalletClient = createWalletClient({
+            account: address,
+            chain: baseSepolia,
+            transport: custom((window as any).ethereum),
+          });
 
           const del = await createSpendingDelegation({
-            walletClient,
+            walletClient: policyWalletClient,
             agentAddress: session.agentAddress,
             maxEth: cmd.maxEth,
           });
@@ -533,8 +539,8 @@ export default function Home() {
           </div>
           {!isConnected ? (
             <p className="text-sm text-yellow-500">Connect wallet to start</p>
-          ) : wrongChain ? (
-            <p className="text-sm text-yellow-500">Switch to Base Sepolia (chain 84532) to start</p>
+          ) : chainId !== 84532 ? (
+            <p className="text-sm text-yellow-500">Switch to Base Sepolia (chain 84532) using the chain selector above</p>
           ) : (
             <div className="space-y-2 text-sm font-mono">
               <div>

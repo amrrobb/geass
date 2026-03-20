@@ -2,14 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export function Nav() {
-  const { address, isConnected } = useAccount();
-  const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
-
   return (
     <nav className="border-b border-geass-border bg-geass-card/50 backdrop-blur-sm">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -24,23 +19,7 @@ export function Nav() {
             <Link href="/settings" className="hover:text-white transition">Settings</Link>
           </div>
         </div>
-        <div>
-          {isConnected ? (
-            <button
-              onClick={() => disconnect()}
-              className="text-sm bg-geass-border hover:bg-gray-700 px-3 py-1.5 rounded-lg transition"
-            >
-              {address?.slice(0, 6)}...{address?.slice(-4)}
-            </button>
-          ) : (
-            <button
-              onClick={() => connect({ connector: injected() })}
-              className="text-sm bg-geass-accent hover:bg-indigo-600 px-3 py-1.5 rounded-lg transition text-white"
-            >
-              Connect Wallet
-            </button>
-          )}
-        </div>
+        <ConnectButton chainStatus="icon" showBalance={false} accountStatus="address" />
       </div>
     </nav>
   );
