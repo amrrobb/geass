@@ -61,7 +61,7 @@ export async function createUserSmartAccount(walletClient: WalletClient) {
   const address = walletClient.account?.address;
   if (!address) throw new Error("Wallet not connected");
 
-  const saltHex = ("0x" + Buffer.from(`user-${address}`).toString("hex").padStart(64, "0")) as Hex;
+  const saltHex = "0x0000000000000000000000000000000000000000000000000000000000000001" as Hex;
 
   const smartAccount = await toMetaMaskSmartAccount({
     client: publicClient as any,
