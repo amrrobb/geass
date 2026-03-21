@@ -230,6 +230,36 @@ function ResultCard({ data }: { data: any }) {
     );
   }
 
+  if (action === "status") {
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-3">{badge}</div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {Object.entries(data).filter(([k]) => !["ok", "action"].includes(k)).map(([key, val]) => (
+            <div key={key} className="flex justify-between items-center p-2 bg-geass-bg rounded border border-geass-border">
+              <span className="text-gray-500">{key}</span>
+              <span className="font-mono text-white text-right max-w-[60%] truncate">{String(val)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (action === "set-policy") {
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center gap-3">{badge}</div>
+        <p className="text-sm text-gray-300">{data.message}</p>
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-white font-display">{data.limit}</span>
+          <span className="text-sm text-gray-500">ETH max</span>
+        </div>
+        <p className="text-xs text-gray-600">{data.enforcement}</p>
+      </div>
+    );
+  }
+
   if (data.error) {
     return (
       <div className="mt-4">
