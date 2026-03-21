@@ -237,10 +237,18 @@ function parseCommand(input: string) {
 
 export default function Home() {
   const { address, isConnected, chainId } = useAccount();
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [session, setSession] = useState<SessionState | null>(null);
   const [command, setCommand] = useState("");
   const [result, setResult] = useState<any>(null);
   const [running, setRunning] = useState(false);
+
+  // Fetch wallet balance
+  useEffect(() => {
+    if (address) {
+      getBalance(address).then(setWalletBalance).catch(() => {});
+    }
+  }, [address]);
 
   // Load session from localStorage
   useEffect(() => {
@@ -531,6 +539,9 @@ export default function Home() {
               )}
               {session?.agentAddress && (
                 <div>Agent: <span className="text-white">{truncAddr(session.agentAddress)}</span> <span className="text-xs text-gray-600">(ephemeral)</span></div>
+              )}
+              {walletBalance && (
+                <div>Wallet: <span className="text-white">{parseFloat(walletBalance).toFixed(4)} ETH</span></div>
               )}
               <div>Chain: <span className="text-white">Base Sepolia (84532)</span></div>
               <div>Txns: <span className="text-white">{session?.transactions.length || 0}</span></div>
