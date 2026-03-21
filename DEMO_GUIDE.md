@@ -1,156 +1,87 @@
-# GEASS Demo Guide
+# GEASS Demo Video Script
 
-## Video Script (2 minutes)
-
-Record this with Loom or OBS. Share your screen showing https://geass.robbyn.xyz.
+**Duration:** 2 minutes | **Format:** Screen recording with narration
 
 ---
 
-### Opening (10 sec)
+## Pre-Recording
 
-**Show:** Dashboard with GEASS logo, status cards, "How GEASS Keeps Secrets" section visible.
-
-**Say:**
-> "This is GEASS — a financial privacy agent. Every other agent project shows you what the agent did. GEASS shows you what the agent didn't reveal."
-
----
-
-### Scene 1: Setup (20 sec)
-
-**Type:** `setup`
-
-**Wait for result card** — shows green SUCCESS badge, smart account addresses, spending policy.
-
-**Say:**
-> "First, the user delegates scoped spending authority to the agent. The MetaMask Delegation Framework creates a delegation with a 0.01 ETH limit. This limit is enforced by a NativeTokenTransferAmountEnforcer — a smart contract on Base Sepolia, not app code."
-
-**Point out:** The User Smart Account and Agent address in the result card.
+1. Open https://geass.robbyn.xyz
+2. Clear localStorage (F12 → Application → Local Storage → delete all geass keys)
+3. Make sure Rabby/MetaMask is on Base Sepolia with ~0.25 ETH
+4. Start Loom/OBS recording (share browser tab only)
 
 ---
 
-### Scene 2: Send within policy — APPROVED (20 sec)
+## NARRATION SCRIPT
 
-**Type:** `send 0.005 to 0xd4c894e2209a5291ab6a4e0f72f6cb385e2a91ab`
+### Opening — Onboarding Slides (30 sec)
 
-**Wait for result card** — shows green APPROVED badge, Venice reasoning in purple card, Basescan link.
+*[The onboarding overlay appears automatically]*
 
-**Say:**
-> "The agent sends 0.005 ETH — within the policy. Notice two things: the Venice.ai reasoning card shows the agent evaluated this privately — no prompts or outputs stored. And there's a Basescan link — this is a real on-chain transaction."
+**Slide 1 — The Problem:**
+> "Your agent moves money on your behalf. But today, the agent holds your private key — it can drain everything. The LLM provider logs every prompt — your strategy becomes their data. And every service sees your wallet address — your spending patterns, contacts, behavior — all linked to you."
 
-**Click the Basescan link** to show the real tx (optional but powerful).
+*[Click "Next"]*
 
----
+**Slide 2 — The Solution:**
+> "GEASS fixes this. Instead of giving your key to the agent, you delegate scoped spending — 0.01 ETH max — enforced by a smart contract, not app code. The agent reasons privately through Venice AI, which stores nothing. And the agent authenticates with its own ephemeral key — services never see your wallet."
 
-### Scene 3: Send over policy — REJECTED (15 sec)
+*[Click "Next"]*
 
-**Type:** `send 0.05 to 0xd4c894e2209a5291ab6a4e0f72f6cb385e2a91ab`
+**Slide 3 — Zero Residual Trust:**
+> "The agent key is generated in your browser. It never touches any server. And when you close the tab — it's gone. Zero residual trust."
 
-**Wait for result card** — shows red REJECTED badge, policy violation message.
-
-**Say:**
-> "Now 0.05 ETH — five times the limit. Instantly rejected. The agent doesn't even call Venice or submit on-chain. It knows the caveat enforcer would revert, so it blocks locally to save gas. This is the agent keeping a secret — it knows what it CAN'T do."
-
----
-
-### Scene 4: SIWA Auth (15 sec)
-
-**Type:** `auth`
-
-**Wait for result card** — shows signed SIWA message, agent address, signature.
-
-**Say:**
-> "The agent authenticates via SIWA — Sign-In With Agent. It signs with its OWN key, server-side. Services see the agent's address. The human principal's identity is never exposed."
+*[Click "Start Building"]*
 
 ---
 
-### Scene 5: Transaction History (10 sec)
+### Scene 1: Setup (30 sec)
 
-**Click "Transactions"** in the nav bar.
+*[Connect wallet via RainbowKit button, then type `setup` and click Execute]*
 
-**Show:** The approved and rejected transactions with Basescan link.
+> "I connect my wallet and run setup. My wallet creates a smart account, generates an ephemeral agent key, and signs a delegation — all on-chain on Base Sepolia. Notice: two wallet confirmations — one for the smart account deployment, one for funding the agent with gas. My wallet stays in control."
 
-**Say:**
-> "Full audit trail. Every transaction — approved or rejected — is logged. Approved ones have on-chain tx hashes you can verify on Basescan."
+*[Wait for SUCCESS result to appear]*
+
+> "Setup complete. The spending pool address and the ephemeral agent address are shown. The agent exists only in this browser tab."
 
 ---
 
-### Scene 6: Status — The Punchline (15 sec)
+### Scene 2: Fund + Send Approved (30 sec)
 
-**Click back to "Dashboard"**. **Type:** `status`
+*[Click the "+ Fund" button to deposit 0.005 ETH]*
 
-**Say:**
-> "Where is the spending authority? On-chain. MetaMask Delegation Framework's NativeTokenTransferAmountEnforcer. Not a config file. Not app code. A smart contract. Auditable. Revocable."
+> "I fund the spending pool with 0.005 ETH."
+
+*[Type: `send 0.001 to 0xd4c894e2209a5291ab6a4e0f72f6cb385e2a91ab` and Execute]*
+
+> "Now I send 0.001 ETH — within the 0.01 limit. The agent checks the policy locally, then Venice AI privately evaluates the transaction for risk. Look at the purple card — Venice analyzed the recipient type, checked for phishing patterns, and assessed privacy leakage risk. None of this reasoning is stored anywhere. Then the delegation is redeemed on-chain — verified on Basescan."
+
+*[Point to the Basescan link]*
+
+---
+
+### Scene 3: Send Rejected (15 sec)
+
+*[Type: `send 0.05 to 0xd4c894e2209a5291ab6a4e0f72f6cb385e2a91ab` and Execute]*
+
+> "Now 0.05 ETH — five times the limit. Instantly rejected. The agent doesn't even call Venice or submit on-chain. The caveat enforcer would revert it, so the agent saves gas by blocking locally. This is the infrastructure keeping the human in control."
 
 ---
 
 ### Closing (15 sec)
 
-**Say:**
-> "Three secrets GEASS keeps:
-> One — what it thinks. Venice.ai reasoning is private. No data stored.
-> Two — who it works for. SIWA proves agent identity without revealing the principal.
-> Three — what it can't do. On-chain caveat enforcers silently block unauthorized transactions.
->
-> One agent. One capability. Depth over breadth."
+> "GEASS is the privacy and spending control layer for any AI agent that moves money. The human defines boundaries via delegation. The smart contract guarantees them. Venice provides private reasoning. And the ephemeral key means zero residual trust. Scoped. Private. Ephemeral."
 
 ---
 
-## Tips for Recording
-
-1. **Use Loom** — free, easy, gives you a shareable link instantly
-2. **Full screen the browser** — hide bookmarks bar, use a clean browser profile
-3. **Go slow on typing** — let each result card fully render before talking
-4. **Don't rush** — 2 minutes is plenty. Pause between scenes.
-5. **If setup takes long** (15-20s), fill the silence: "The agent is creating smart accounts on Base Sepolia and signing the delegation..."
-6. **If a command fails**, just say "let me retry" — judges expect testnet hiccups
-7. **Show the "How GEASS Keeps Secrets" section** at the bottom of the dashboard — it's your visual summary
-
 ## After Recording
 
-Upload the video URL to your submission:
-
+Upload video URL:
 ```bash
 curl -X POST "https://synthesis.devfolio.co/projects/3dcbbe82caff4e72975aa54827a7f707" \
   -H "Authorization: Bearer sk-synth-ac778830b83282a90bfc8d4df77c767f9e09b7c8cc60a4f0" \
   -H "Content-Type: application/json" \
   -d '{"videoURL": "YOUR_LOOM_OR_YOUTUBE_URL"}'
 ```
-
----
-
-## Pre-Recording Checklist
-
-- [ ] Open https://geass.robbyn.xyz in a clean browser window
-- [ ] Verify status returns "not initialized" (fresh state for demo)
-- [ ] Verify owner EOA has Base Sepolia ETH for gas
-- [ ] Start Loom/OBS recording
-- [ ] Share screen (browser only, not whole desktop)
-- [ ] Run through the script above
-- [ ] Stop recording, get shareable link
-- [ ] Update submission with videoURL
-
-## Troubleshooting
-
-### State not fresh (shows "complete" instead of "not initialized")
-Delete the state file on the server. Or just skip setup and go straight to send commands.
-
-### Setup takes too long / times out
-Owner EOA needs gas. Check balance:
-```bash
-curl -s https://geass.robbyn.xyz/api/agent/run -X POST -H "Content-Type: application/json" -d '{"command":"balance"}'
-```
-
-### Venice says "reasoning unavailable"
-VENICE_API_KEY missing in Coolify env vars. The agent will reject (fail-closed) — mention this: "Venice is unavailable, so the agent defaults to rejecting — fail-closed, not fail-open."
-
----
-
-## Key Links
-
-| Resource | URL |
-|----------|-----|
-| Live demo | https://geass.robbyn.xyz |
-| GitHub | https://github.com/amrrobb/geass |
-| Base Sepolia Explorer | https://sepolia.basescan.org |
-| Status Network Contract | https://sepoliascan.status.network/address/0xf95c11c7acfea0d63a621195a7004fe3b8c7884b |
-| User Smart Account | https://sepolia.basescan.org/address/0x58f5b2fBd6442480448D05d555F4E30959cb7e48 |
