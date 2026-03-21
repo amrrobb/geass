@@ -263,7 +263,9 @@ export default function Home() {
   const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [saBalance, setSaBalance] = useState<string | null>(null);
   const [session, setSession] = useState<SessionState | null>(null);
+  const [funding, setFunding] = useState(false);
   const [command, setCommand] = useState("");
   const [result, setResult] = useState<any>(null);
   const [running, setRunning] = useState(false);
@@ -274,6 +276,13 @@ export default function Home() {
       getBalance(address).then(setWalletBalance).catch(() => {});
     }
   }, [address]);
+
+  // Fetch smart account balance
+  useEffect(() => {
+    if (session?.userSmartAccount) {
+      getBalance(session.userSmartAccount).then(setSaBalance).catch(() => {});
+    }
+  }, [session?.userSmartAccount, result]);
 
   // Load session from localStorage
   useEffect(() => {
@@ -287,6 +296,28 @@ export default function Home() {
     setSession(s);
     localStorage.setItem("geass-session", JSON.stringify(s));
   }, []);
+
+  async function fundSmartAccount() {
+    if (!session || !walletClient || !address) return;
+    setFunding(true);
+    try {
+      const hash = await walletClient.sendTransaction({
+        account: address,
+        to: session.userSmartAccount,
+        value: parseEther("0.005"),
+        chain: undefined,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      const bal = await getBalance(session.userSmartAccount);
+      setSaBalance(bal);
+      getBalance(address).then(setWalletBalance).catch(() => {});
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fund failed";
+      setResult({ ok: false, error: msg });
+    } finally {
+      setFunding(false);
+    }
+  }
 
   async function runCommand(e: React.FormEvent) {
     e.preventDefault();
@@ -571,10 +602,27 @@ export default function Home() {
                 </span>
               </div>
               {session?.userSmartAccount && (
-                <div><CopyAddr addr={session.userSmartAccount} label="User SA:" /></div>
+                <div><CopyAddr addr={session.userSmartAccount} label="Smart Acct:" /></div>
               )}
               {session?.agentAddress && (
                 <div><CopyAddr addr={session.agentAddress} label="Agent:" /> <span className="text-xs text-gray-600">(ephemeral)</span></div>
+              )}
+              {saBalance != null && session && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">SA Balance:</span>
+                  <span className={parseFloat(saBalance) > 0 ? "text-geass-green" : "text-yellow-500"}>
+                    {parseFloat(saBalance).toFixed(4)} ETH
+                  </span>
+                  {parseFloat(saBalance) < 0.001 && (
+                    <button
+                      onClick={fundSmartAccount}
+                      disabled={funding}
+                      className="text-xs bg-geass-accent hover:bg-indigo-600 disabled:opacity-50 px-2 py-0.5 rounded text-white transition"
+                    >
+                      {funding ? "Funding…" : "Fund 0.005 ETH"}
+                    </button>
+                  )}
+                </div>
               )}
               {walletBalance && (
                 <div>Wallet: <span className="text-white">{parseFloat(walletBalance).toFixed(4)} ETH</span></div>
@@ -627,6 +675,50 @@ export default function Home() {
         </form>
         {result && <ResultCard data={result} />}
       </div>
+
+      {/* Getting Started Guide — show when not fully set up */}
+      {isConnected && (!session || (saBalance != null && parseFloat(saBalance) < 0.001)) && (
+        <div className="bg-geass-card border border-geass-accent/30 rounded-xl p-6">
+          <h3 className="text-sm font-medium text-geass-accent mb-3">Getting Started</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-start gap-3">
+              <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${session ? "bg-geass-green/20 text-geass-green" : "bg-geass-accent/20 text-geass-accent"}`}>
+                {session ? "✓" : "1"}
+              </span>
+              <div>
+                <p className={session ? "text-gray-500 line-through" : "text-white font-medium"}>
+                  Run <span className="font-mono text-geass-accent">setup</span>
+                </p>
+                <p className="text-xs text-gray-600">Creates your smart account, generates an ephemeral agent key, and signs the delegation. Your wallet will prompt for approval.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${saBalance && parseFloat(saBalance) >= 0.001 ? "bg-geass-green/20 text-geass-green" : session ? "bg-geass-accent/20 text-geass-accent" : "bg-gray-800 text-gray-600"}`}>
+                {saBalance && parseFloat(saBalance) >= 0.001 ? "✓" : "2"}
+              </span>
+              <div>
+                <p className={saBalance && parseFloat(saBalance) >= 0.001 ? "text-gray-500 line-through" : session ? "text-white font-medium" : "text-gray-600"}>
+                  Fund the smart account
+                </p>
+                <p className="text-xs text-gray-600">
+                  {session
+                    ? "Click the \"Fund 0.005 ETH\" button above, or send ETH directly to the smart account address."
+                    : "After setup, deposit ETH into your smart account so the agent can send transactions."}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-gray-800 text-gray-600">3</span>
+              <div>
+                <p className="text-gray-600">Try commands</p>
+                <p className="text-xs text-gray-600">
+                  <span className="font-mono text-gray-500">send 0.001 to 0x...</span> (approved) · <span className="font-mono text-gray-500">send 0.05 to 0x...</span> (rejected) · <span className="font-mono text-gray-500">auth</span> · <span className="font-mono text-gray-500">balance</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">How GEASS Keeps Secrets</h3>
