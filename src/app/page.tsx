@@ -660,12 +660,10 @@ export default function Home() {
                   <span className={`font-mono text-sm font-semibold ${parseFloat(saBalance) > 0 ? "text-geass-green" : "text-yellow-500"}`}>
                     {parseFloat(saBalance).toFixed(4)}
                   </span>
-                  {parseFloat(saBalance) < 0.001 && (
-                    <button onClick={fundSmartAccount} disabled={funding}
-                      className="text-[10px] bg-geass-accent/20 hover:bg-geass-accent/30 border border-geass-accent/30 disabled:opacity-50 px-2 py-0.5 rounded text-geass-accent-bright transition">
-                      {funding ? "…" : "+ Fund"}
-                    </button>
-                  )}
+                  <button onClick={fundSmartAccount} disabled={funding}
+                    className="text-[10px] bg-geass-accent/20 hover:bg-geass-accent/30 border border-geass-accent/30 disabled:opacity-50 px-2 py-0.5 rounded text-geass-accent-bright transition">
+                    {funding ? "…" : "+ Fund"}
+                  </button>
                 </div>
               </div>
               <div className="flex justify-between items-center">
