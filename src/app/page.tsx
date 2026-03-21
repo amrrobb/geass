@@ -294,7 +294,7 @@ export default function Home() {
             implementation: Implementation.Hybrid,
             deployParams: [address, [], [], []],
             deploySalt: salt,
-            signer: walletClient as any,
+            signer: { walletClient: walletClient as any },
           });
 
           // Deploy smart account if needed (user's wallet pays gas)

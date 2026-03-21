@@ -68,7 +68,7 @@ export async function createUserSmartAccount(walletClient: WalletClient) {
     implementation: Implementation.Hybrid,
     deployParams: [address, [], [], []],
     deploySalt: saltHex,
-    signer: walletClient as any,
+    signer: { walletClient: walletClient as any },
   });
 
   // Deploy if not already on-chain
