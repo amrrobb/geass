@@ -44,6 +44,28 @@ function truncAddr(addr: string) {
   return addr.slice(0, 8) + "…" + addr.slice(-6);
 }
 
+function CopyAddr({ addr, label }: { addr: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(addr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <span className="inline-flex items-center gap-1 cursor-pointer group" onClick={handleCopy} title={addr}>
+      {label && <span className="text-gray-500">{label}</span>}
+      <span className="text-white font-mono">{truncAddr(addr)}</span>
+      {copied ? (
+        <span className="text-geass-green text-xs">✓ copied</span>
+      ) : (
+        <svg className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 // ── Result Card ─────────────────────────────────────────────────────
 
 function ResultCard({ data }: { data: any }) {
@@ -130,11 +152,11 @@ function ResultCard({ data }: { data: any }) {
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-2 bg-geass-bg rounded border border-geass-border">
             <span className="text-gray-500">User Smart Account</span>
-            <p className="font-mono text-white mt-0.5">{truncAddr(data.userSmartAccount || "")}</p>
+            <p className="mt-0.5"><CopyAddr addr={data.userSmartAccount || ""} /></p>
           </div>
           <div className="p-2 bg-geass-bg rounded border border-geass-border">
             <span className="text-gray-500">Agent (ephemeral)</span>
-            <p className="font-mono text-white mt-0.5">{truncAddr(data.agentAddress || "")}</p>
+            <p className="mt-0.5"><CopyAddr addr={data.agentAddress || ""} /></p>
           </div>
         </div>
         <div className="p-2 bg-geass-bg rounded border border-geass-border text-xs">
@@ -549,10 +571,10 @@ export default function Home() {
                 </span>
               </div>
               {session?.userSmartAccount && (
-                <div>User SA: <span className="text-white">{truncAddr(session.userSmartAccount)}</span></div>
+                <div><CopyAddr addr={session.userSmartAccount} label="User SA:" /></div>
               )}
               {session?.agentAddress && (
-                <div>Agent: <span className="text-white">{truncAddr(session.agentAddress)}</span> <span className="text-xs text-gray-600">(ephemeral)</span></div>
+                <div><CopyAddr addr={session.agentAddress} label="Agent:" /> <span className="text-xs text-gray-600">(ephemeral)</span></div>
               )}
               {walletBalance && (
                 <div>Wallet: <span className="text-white">{parseFloat(walletBalance).toFixed(4)} ETH</span></div>
