@@ -87,12 +87,19 @@ function ResultCard({ data }: { data: any }) {
   const veniceReasoning = data.veniceReasoning ? (
     <div className="mt-3 p-3 bg-purple-900/20 border border-purple-800/30 rounded-lg">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-purple-400 text-xs font-medium">🧠 Private Reasoning (Venice.ai)</span>
+        <span className="text-purple-400 text-xs font-medium">🧠 Private Risk Analysis (Venice.ai — no data stored)</span>
         {data.veniceConfidence != null && (
           <span className="text-purple-500 text-xs">confidence: {data.veniceConfidence}</span>
         )}
       </div>
       <p className="text-sm text-purple-200">{data.veniceReasoning}</p>
+      {data.riskFactors && data.riskFactors.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {data.riskFactors.map((f: string, i: number) => (
+            <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-purple-900/40 text-purple-300 border border-purple-800/30">{f}</span>
+          ))}
+        </div>
+      )}
     </div>
   ) : null;
 
@@ -445,7 +452,7 @@ export default function Home() {
           const veniceRes = await fetch("/api/venice", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ amount: cmd.amount, recipient: cmd.recipient, policy: session.spendingLimitEth }),
+            body: JSON.stringify({ amount: cmd.amount, recipient: cmd.recipient, policy: session.spendingLimitEth, txHistory: session.transactions.length }),
           });
           const veniceResult = await veniceRes.json();
 
@@ -490,6 +497,8 @@ export default function Home() {
             txHash, recipient: cmd.recipient, amount: cmd.amount,
             policy: { limit: session.spendingLimitEth, enforced: "on-chain" },
             veniceReasoning: veniceResult.reasoning,
+            veniceConfidence: veniceResult.confidence,
+            riskFactors: veniceResult.riskFactors,
           });
           break;
         }

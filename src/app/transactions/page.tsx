@@ -21,24 +21,15 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/agent/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ command: "history" }),
-      signal: controller.signal,
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok) {
-          setTxs(data.transactions || []);
-          setTotal(data.total || 0);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
+    try {
+      const saved = localStorage.getItem("geass-session");
+      if (saved) {
+        const session = JSON.parse(saved);
+        setTxs(session.transactions || []);
+        setTotal(session.transactions?.length || 0);
+      }
+    } catch {}
+    setLoading(false);
   }, []);
 
   return (
