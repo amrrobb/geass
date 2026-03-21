@@ -602,14 +602,14 @@ export default function Home() {
                 </span>
               </div>
               {session?.userSmartAccount && (
-                <div><CopyAddr addr={session.userSmartAccount} label="Smart Acct:" /></div>
+                <div><CopyAddr addr={session.userSmartAccount} label="Spending Pool:" /></div>
               )}
               {session?.agentAddress && (
                 <div><CopyAddr addr={session.agentAddress} label="Agent:" /> <span className="text-xs text-gray-600">(ephemeral)</span></div>
               )}
               {saBalance != null && session && (
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500">SA Balance:</span>
+                  <span className="text-gray-500">Pool Balance:</span>
                   <span className={parseFloat(saBalance) > 0 ? "text-geass-green" : "text-yellow-500"}>
                     {parseFloat(saBalance).toFixed(4)} ETH
                   </span>
