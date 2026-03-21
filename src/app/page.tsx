@@ -586,179 +586,187 @@ export default function Home() {
 
   const ready = session != null;
 
+  const poolFunded = saBalance != null && parseFloat(saBalance) >= 0.001;
+  const step = !session ? 1 : !poolFunded ? 2 : 3;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">GEASS Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          The power of absolute delegation — non-custodial, ephemeral agent keys, on-chain enforcement
-        </p>
+    <div className="space-y-5 relative">
+      {/* Hero header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-geass-card via-geass-bg to-geass-card border border-geass-border p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-geass-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-geass-purple/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
+        <div className="relative">
+          <h1 className="text-3xl font-extrabold text-white font-display tracking-tight">
+            GEASS <span className="text-geass-accent">Dashboard</span>
+          </h1>
+          <p className="text-sm text-gray-500 mt-2 max-w-xl leading-relaxed">
+            Non-custodial spending delegation with private reasoning. Your wallet delegates, the ephemeral agent executes, caveat enforcers protect.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-geass-card border border-geass-border rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <svg className="w-5 h-5 text-geass-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <h3 className="text-sm font-medium text-gray-400">Delegation Status</h3>
+      {/* Status grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Delegation status */}
+        <div className="bg-geass-card border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors">
+          <div className="flex items-center gap-2 mb-4">
+            <div className={`w-2 h-2 rounded-full ${ready ? "bg-geass-green pulse-dot" : "bg-yellow-500"}`} />
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Delegation</h3>
           </div>
           {!isConnected ? (
-            <p className="text-sm text-yellow-500">Connect wallet to start</p>
+            <p className="text-sm text-yellow-500/80">Connect wallet to begin</p>
           ) : chainId !== 84532 ? (
-            <p className="text-sm text-yellow-500">Switch to Base Sepolia using the chain selector above</p>
+            <p className="text-sm text-yellow-500/80">Switch to Base Sepolia</p>
           ) : (
-            <div className="space-y-2 text-sm font-mono">
-              <div>
-                Setup:{" "}
-                <span className={ready ? "text-geass-green" : "text-yellow-500"}>
-                  {ready ? "complete" : "not initialized"}
-                </span>
-              </div>
+            <div className="space-y-2.5 text-xs font-mono">
               {session?.userSmartAccount && (
-                <div><CopyAddr addr={session.userSmartAccount} label="Spending Pool:" /></div>
+                <div><CopyAddr addr={session.userSmartAccount} label="Pool:" /></div>
               )}
               {session?.agentAddress && (
-                <div><CopyAddr addr={session.agentAddress} label="Agent:" /> <span className="text-xs text-gray-600">(ephemeral)</span></div>
+                <div><CopyAddr addr={session.agentAddress} label="Agent:" /> <span className="text-gray-600 text-[10px]">ephemeral</span></div>
               )}
-              {saBalance != null && session && (
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500">Pool Balance:</span>
-                  <span className={parseFloat(saBalance) > 0 ? "text-geass-green" : "text-yellow-500"}>
-                    {parseFloat(saBalance).toFixed(4)} ETH
-                  </span>
-                  {parseFloat(saBalance) < 0.001 && (
-                    <button
-                      onClick={fundSmartAccount}
-                      disabled={funding}
-                      className="text-xs bg-geass-accent hover:bg-indigo-600 disabled:opacity-50 px-2 py-0.5 rounded text-white transition"
-                    >
-                      {funding ? "Funding…" : "Fund 0.005 ETH"}
-                    </button>
-                  )}
-                </div>
-              )}
-              {walletBalance && (
-                <div>Wallet: <span className="text-white">{parseFloat(walletBalance).toFixed(4)} ETH</span></div>
-              )}
-              <div>Chain: <span className="text-white">Base Sepolia (84532)</span></div>
-              <div>Txns: <span className="text-white">{session?.transactions.length || 0}</span></div>
+              {!session && <p className="text-gray-600 font-display font-normal text-sm">Run <span className="font-mono text-geass-accent">setup</span> to begin</p>}
             </div>
           )}
         </div>
 
-        <div className="bg-geass-card border border-geass-border rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <svg className="w-5 h-5 text-geass-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <h3 className="text-sm font-medium text-gray-400">Spending Policy</h3>
+        {/* Spending policy */}
+        <div className="bg-geass-card border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Spending Limit</h3>
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-2xl font-bold text-white font-display">{session?.spendingLimitEth || "0.01"}</span>
+            <span className="text-sm text-gray-500">ETH max</span>
           </div>
-          <div className="space-y-2 text-sm">
-            <div className="p-3 bg-geass-bg rounded-lg border border-geass-border">
-              <span className="text-geass-accent font-mono text-lg">{session?.spendingLimitEth || "0.01"} ETH max</span>
+          <p className="text-[10px] text-gray-600 leading-relaxed">NativeTokenTransferAmountEnforcer — on-chain, not app code</p>
+        </div>
+
+        {/* Balances */}
+        <div className="bg-geass-card border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Balances</h3>
+          {session && saBalance != null ? (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Pool</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-mono text-sm font-semibold ${parseFloat(saBalance) > 0 ? "text-geass-green" : "text-yellow-500"}`}>
+                    {parseFloat(saBalance).toFixed(4)}
+                  </span>
+                  {parseFloat(saBalance) < 0.001 && (
+                    <button onClick={fundSmartAccount} disabled={funding}
+                      className="text-[10px] bg-geass-accent/20 hover:bg-geass-accent/30 border border-geass-accent/30 disabled:opacity-50 px-2 py-0.5 rounded text-geass-accent-bright transition">
+                      {funding ? "…" : "+ Fund"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Wallet</span>
+                <span className="font-mono text-sm text-white">{walletBalance ? parseFloat(walletBalance).toFixed(4) : "—"}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Txns</span>
+                <span className="font-mono text-sm text-white">{session.transactions.length}</span>
+              </div>
             </div>
-            <p className="text-xs text-gray-600">MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer</p>
-            <div className="mt-2 space-y-1 text-xs text-gray-500">
-              <div>Reasoning: Venice.ai (private, no data stored)</div>
-              <div>Agent key: Ephemeral (browser session only)</div>
-              <div>Identity: SIWA (EIP-4361)</div>
-            </div>
-          </div>
+          ) : (
+            <p className="text-sm text-gray-600 font-display">
+              {walletBalance ? `Wallet: ${parseFloat(walletBalance).toFixed(4)} ETH` : "Connect wallet"}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="bg-geass-card border border-geass-border rounded-xl p-6">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">Agent Command</h3>
-        <form onSubmit={runCommand} className="flex gap-3">
-          <input
-            type="text"
-            value={command}
-            onChange={(e) => setCommand(e.target.value)}
-            placeholder={isConnected ? "setup | send 0.001 to 0x… | balance | auth | history" : "Connect wallet first"}
-            disabled={!isConnected}
-            className="flex-1 bg-geass-bg border border-geass-border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-geass-accent disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={running || !isConnected}
-            className="bg-geass-accent hover:bg-indigo-600 disabled:opacity-50 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition"
-          >
-            {running ? "Running…" : "Execute"}
-          </button>
-        </form>
-        {result && <ResultCard data={result} />}
-      </div>
-
-      {/* Getting Started Guide — show when not fully set up */}
-      {isConnected && (!session || (saBalance != null && parseFloat(saBalance) < 0.001)) && (
-        <div className="bg-geass-card border border-geass-accent/30 rounded-xl p-6">
-          <h3 className="text-sm font-medium text-geass-accent mb-3">Getting Started</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-start gap-3">
-              <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${session ? "bg-geass-green/20 text-geass-green" : "bg-geass-accent/20 text-geass-accent"}`}>
-                {session ? "✓" : "1"}
-              </span>
-              <div>
-                <p className={session ? "text-gray-500 line-through" : "text-white font-medium"}>
-                  Run <span className="font-mono text-geass-accent">setup</span>
-                </p>
-                <p className="text-xs text-gray-600">Creates your smart account, generates an ephemeral agent key, and signs the delegation. Your wallet will prompt for approval.</p>
+      {/* Getting Started — only when needed */}
+      {isConnected && step < 3 && (
+        <div className="bg-gradient-to-r from-geass-accent/5 via-geass-card to-geass-purple/5 border border-geass-accent/20 rounded-xl p-5 fade-up">
+          <h3 className="text-xs font-semibold text-geass-accent uppercase tracking-wider mb-4">Getting Started</h3>
+          <div className="flex gap-6 text-sm">
+            {[
+              { n: 1, label: "Setup", desc: "Run setup — wallet signs delegation", done: !!session },
+              { n: 2, label: "Fund", desc: "Deposit ETH to the spending pool", done: poolFunded },
+              { n: 3, label: "Transact", desc: "Send, authenticate, reason privately", done: false },
+            ].map((s) => (
+              <div key={s.n} className="flex items-start gap-2 flex-1">
+                <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
+                  ${s.done ? "bg-geass-green/20 text-geass-green" : s.n === step ? "bg-geass-accent/20 text-geass-accent border border-geass-accent/40" : "bg-gray-800/50 text-gray-600"}`}>
+                  {s.done ? "✓" : s.n}
+                </span>
+                <div>
+                  <p className={`text-xs font-medium ${s.done ? "text-gray-500 line-through" : s.n === step ? "text-white" : "text-gray-600"}`}>{s.label}</p>
+                  <p className="text-[10px] text-gray-600 mt-0.5">{s.desc}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${saBalance && parseFloat(saBalance) >= 0.001 ? "bg-geass-green/20 text-geass-green" : session ? "bg-geass-accent/20 text-geass-accent" : "bg-gray-800 text-gray-600"}`}>
-                {saBalance && parseFloat(saBalance) >= 0.001 ? "✓" : "2"}
-              </span>
-              <div>
-                <p className={saBalance && parseFloat(saBalance) >= 0.001 ? "text-gray-500 line-through" : session ? "text-white font-medium" : "text-gray-600"}>
-                  Fund the smart account
-                </p>
-                <p className="text-xs text-gray-600">
-                  {session
-                    ? "Click the \"Fund 0.005 ETH\" button above, or send ETH directly to the smart account address."
-                    : "After setup, deposit ETH into your smart account so the agent can send transactions."}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-gray-800 text-gray-600">3</span>
-              <div>
-                <p className="text-gray-600">Try commands</p>
-                <p className="text-xs text-gray-600">
-                  <span className="font-mono text-gray-500">send 0.001 to 0x...</span> (approved) · <span className="font-mono text-gray-500">send 0.05 to 0x...</span> (rejected) · <span className="font-mono text-gray-500">auth</span> · <span className="font-mono text-gray-500">balance</span>
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
 
-      <div className="bg-geass-card border border-geass-border rounded-xl p-6">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">How GEASS Keeps Secrets</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="p-3 bg-geass-bg rounded-lg">
-            <p className="text-geass-accent font-medium mb-1">1. Delegated Authority</p>
-            <p className="text-gray-500">
-              Your wallet delegates scoped spending to an ephemeral agent key.
-              On-chain caveat enforcers limit what the agent can spend. No key sharing. No custody.
-            </p>
+      {/* Command terminal */}
+      <div className="bg-geass-card border border-geass-border rounded-xl p-5 scanline">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex gap-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-geass-red/60" />
+            <div className="w-2.5 h-2.5 rounded-full bg-geass-gold/60" />
+            <div className="w-2.5 h-2.5 rounded-full bg-geass-green/60" />
           </div>
-          <div className="p-3 bg-geass-bg rounded-lg">
-            <p className="text-geass-accent font-medium mb-1">2. Private Reasoning</p>
-            <p className="text-gray-500">
-              Agent reasons about transactions via Venice.ai — no prompts or outputs stored.
-              The agent&apos;s decision logic stays invisible.
-            </p>
-          </div>
-          <div className="p-3 bg-geass-bg rounded-lg">
-            <p className="text-geass-accent font-medium mb-1">3. Identity Separation</p>
-            <p className="text-gray-500">
-              Agent authenticates via SIWA (EIP-4361) with its ephemeral key.
-              Services see the agent&apos;s address, never your wallet.
-            </p>
-          </div>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">Agent Terminal</h3>
         </div>
+        <form onSubmit={runCommand} className="flex gap-2">
+          <div className="flex-1 flex items-center bg-geass-bg border border-geass-border rounded-lg px-3 focus-within:border-geass-accent/50 transition-colors">
+            <span className="text-geass-accent font-mono text-sm mr-2 select-none">$</span>
+            <input
+              type="text"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              placeholder={isConnected ? "setup · send 0.001 to 0x… · auth · balance · history" : "connect wallet first"}
+              disabled={!isConnected}
+              className="flex-1 bg-transparent py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none disabled:opacity-50 font-mono command-input"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={running || !isConnected}
+            className="bg-geass-accent hover:bg-geass-accent-bright disabled:opacity-40 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-geass-accent/20"
+          >
+            {running ? (
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Running</span>
+              </span>
+            ) : "Execute"}
+          </button>
+        </form>
+        {result && <div className="fade-up"><ResultCard data={result} /></div>}
+      </div>
+
+      {/* Three pillars */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          {
+            icon: "⚡",
+            title: "Delegated Authority",
+            desc: "Your wallet delegates scoped spending to an ephemeral agent key. On-chain caveat enforcers limit what the agent can spend.",
+            accent: "from-geass-accent/10 to-transparent",
+          },
+          {
+            icon: "🧠",
+            title: "Private Reasoning",
+            desc: "Agent evaluates transactions via Venice.ai for risk — no prompts or outputs stored. The reasoning stays invisible.",
+            accent: "from-geass-purple/10 to-transparent",
+          },
+          {
+            icon: "🔐",
+            title: "Identity Separation",
+            desc: "Agent authenticates via SIWA (EIP-4361) with its ephemeral key. Services see the agent, never your wallet.",
+            accent: "from-geass-crimson/10 to-transparent",
+          },
+        ].map((pillar) => (
+          <div key={pillar.title} className={`bg-gradient-to-b ${pillar.accent} border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors`}>
+            <div className="text-xl mb-2">{pillar.icon}</div>
+            <p className="text-sm font-semibold text-white mb-2 font-display">{pillar.title}</p>
+            <p className="text-xs text-gray-500 leading-relaxed">{pillar.desc}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
