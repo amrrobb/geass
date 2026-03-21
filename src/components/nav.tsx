@@ -16,7 +16,6 @@ export function Nav() {
           <div className="flex gap-4 text-sm text-gray-400">
             <Link href="/" className="hover:text-white transition">Dashboard</Link>
             <Link href="/transactions" className="hover:text-white transition">Transactions</Link>
-            <Link href="/settings" className="hover:text-white transition">Settings</Link>
           </div>
         </div>
         <ConnectButton chainStatus="icon" showBalance={false} accountStatus="address" />
