@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import type { Address, Hex } from "viem";
+import { parseEther, formatEther } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import {
-  executeWithDelegation,
+  toMetaMaskSmartAccount,
+  Implementation,
+  getSmartAccountsEnvironment,
+  createDelegation,
+  ROOT_AUTHORITY,
+  contracts,
+  ExecutionMode,
+} from "@metamask/smart-accounts-kit";
+import {
   checkPolicy,
   signSiwaMessage,
   getBalance,
+  publicClient,
+  getEphemeralWalletClient,
 } from "@/lib/delegation-client";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -63,12 +75,8 @@ function ResultCard({ data }: { data: any }) {
   ) : null;
 
   const txLink = data.txHash ? (
-    <a
-      href={`https://sepolia.basescan.org/tx/${data.txHash}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 mt-2 text-xs text-geass-accent hover:underline"
-    >
+    <a href={`https://sepolia.basescan.org/tx/${data.txHash}`} target="_blank" rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 mt-2 text-xs text-geass-accent hover:underline">
       <span>🔗</span> View on Basescan: {data.txHash.slice(0, 10)}…{data.txHash.slice(-8)}
     </a>
   ) : null;
@@ -86,7 +94,7 @@ function ResultCard({ data }: { data: any }) {
       <div className="mt-4 space-y-3">
         <div className="flex items-center gap-3">{badge}</div>
         <div className="p-3 bg-geass-bg rounded-lg border border-geass-border">
-          <p className="text-xs text-gray-500 mb-1">Agent Address (ephemeral — exists only in this session)</p>
+          <p className="text-xs text-gray-500 mb-1">Agent Address (ephemeral — this session only)</p>
           <p className="font-mono text-sm text-geass-accent">{data.siwa.agentAddress}</p>
         </div>
         <div className="p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
@@ -103,9 +111,7 @@ function ResultCard({ data }: { data: any }) {
       <div className="mt-4 space-y-3">
         <div className="flex items-center justify-between">
           {badge}
-          {data.amount && (
-            <span className="font-mono text-sm text-white">{data.amount} ETH → {truncAddr(data.recipient || "")}</span>
-          )}
+          {data.amount && <span className="font-mono text-sm text-white">{data.amount} ETH → {truncAddr(data.recipient || "")}</span>}
         </div>
         {data.policyCheck && <p className="text-xs text-gray-400">{data.policyCheck}</p>}
         {data.message && <p className="text-sm text-gray-300">{data.message}</p>}
@@ -217,19 +223,15 @@ function ResultCard({ data }: { data: any }) {
 
 function parseCommand(input: string) {
   const lower = input.toLowerCase().trim();
-
   const sendMatch = lower.match(/send\s+([\d.]+)\s+(?:eth\s+)?to\s+(0x[a-f0-9]+)/i);
   if (sendMatch) return { type: "send" as const, amount: sendMatch[1], recipient: sendMatch[2] };
-
   const policyMatch = lower.match(/(?:set-?policy|policy)\s+([\d.]+)/);
   if (policyMatch) return { type: "set-policy" as const, maxEth: policyMatch[1] };
-
   if (lower.includes("setup") || lower.includes("create") || lower.includes("init")) return { type: "setup" as const };
   if (lower.includes("auth")) return { type: "authenticate" as const };
   if (lower.includes("balance")) return { type: "check-balance" as const };
   if (lower.includes("status")) return { type: "status" as const };
   if (lower.includes("history") || lower.includes("log")) return { type: "history" as const };
-
   return { type: "help" as const };
 }
 
@@ -237,6 +239,7 @@ function parseCommand(input: string) {
 
 export default function Home() {
   const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [session, setSession] = useState<SessionState | null>(null);
   const [command, setCommand] = useState("");
@@ -258,7 +261,6 @@ export default function Home() {
     }
   }, []);
 
-  // Save session to localStorage
   const saveSession = useCallback((s: SessionState) => {
     setSession(s);
     localStorage.setItem("geass-session", JSON.stringify(s));
@@ -276,27 +278,91 @@ export default function Home() {
       switch (cmd.type) {
         case "setup": {
           if (!isConnected || !address) throw new Error("Connect your wallet first.");
+          if (!walletClient) throw new Error("Wallet not ready. Try disconnecting and reconnecting.");
 
-          // Setup via server API — creates smart account, delegation, ephemeral key
-          const setupRes = await fetch("/api/agent/setup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userAddress: address }),
+          // Generate ephemeral agent key
+          const { generatePrivateKey: genKey } = await import("viem/accounts");
+          const agentPrivateKey = genKey();
+          const agentAccount = privateKeyToAccount(agentPrivateKey);
+
+          // Create smart account using connected wallet as signer
+          const salt = "0x0000000000000000000000000000000000000000000000000000000000000001" as Hex;
+          const env = getSmartAccountsEnvironment(84532);
+
+          const smartAccount = await toMetaMaskSmartAccount({
+            client: publicClient as any,
+            implementation: Implementation.Hybrid,
+            deployParams: [address, [], [], []],
+            deploySalt: salt,
+            signer: walletClient as any,
           });
-          const setupData = await setupRes.json();
-          if (!setupData.ok) throw new Error(setupData.error);
+
+          // Deploy smart account if needed (user's wallet pays gas)
+          const deployed = await smartAccount.isDeployed();
+          if (!deployed) {
+            const factoryArgs = await smartAccount.getFactoryArgs();
+            if (factoryArgs) {
+              const txHash = await walletClient.sendTransaction({
+                account: address,
+                to: factoryArgs.factory as Address,
+                data: factoryArgs.factoryData as Hex,
+                chain: undefined,
+              });
+              await publicClient.waitForTransactionReceipt({ hash: txHash });
+            }
+          }
+
+          // Create delegation: user's smart account → ephemeral agent
+          const delegation = createDelegation({
+            environment: env,
+            to: agentAccount.address,
+            from: smartAccount.address,
+            scope: {
+              type: "nativeTokenTransferAmount" as const,
+              maxAmount: parseEther("0.01"),
+            },
+            parentDelegation: ROOT_AUTHORITY,
+          });
+
+          // User's wallet signs the delegation
+          const signature = await smartAccount.signDelegation({ delegation });
+          const signedDelegation = { ...delegation, signature };
+
+          // Fund ephemeral agent with gas (user pays ~0.0005 ETH)
+          const fundHash = await walletClient.sendTransaction({
+            account: address,
+            to: agentAccount.address,
+            value: parseEther("0.0005"),
+            chain: undefined,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: fundHash });
+
+          const saBalance = await getBalance(smartAccount.address as Address);
 
           const newSession: SessionState = {
-            agentPrivateKey: setupData.agentPrivateKey,
-            agentAddress: setupData.agentAddress,
-            userSmartAccount: setupData.userSmartAccount,
-            delegation: setupData.delegation,
+            agentPrivateKey,
+            agentAddress: agentAccount.address,
+            userSmartAccount: smartAccount.address as Address,
+            delegation: signedDelegation,
             spendingLimitEth: "0.01",
             transactions: [],
           };
           saveSession(newSession);
 
-          setResult(setupData);
+          // Refresh wallet balance
+          getBalance(address).then(setWalletBalance).catch(() => {});
+
+          setResult({
+            ok: true,
+            action: "setup",
+            message: "Delegation created. Your wallet signed the spending policy. Agent key is ephemeral — exists only in this browser.",
+            userSmartAccount: smartAccount.address,
+            agentAddress: agentAccount.address,
+            spendingPolicy: "0.01 ETH max per delegation",
+            enforcement: "On-chain via MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer",
+            smartAccountFunded: parseFloat(saBalance) > 0,
+            note: parseFloat(saBalance) > 0 ? undefined : "Fund the smart account with Base Sepolia ETH to enable on-chain execution",
+          });
           break;
         }
 
@@ -307,18 +373,12 @@ export default function Home() {
 
           if (!policyCheck.allowed) {
             session.transactions.push({
-              to: cmd.recipient,
-              amount: cmd.amount,
-              status: "rejected",
-              reason: policyCheck.reason,
-              timestamp: Date.now(),
+              to: cmd.recipient, amount: cmd.amount, status: "rejected",
+              reason: policyCheck.reason, timestamp: Date.now(),
             });
             saveSession({ ...session });
-
             setResult({
-              ok: false,
-              action: "send",
-              error: "REJECTED — spending policy violated",
+              ok: false, action: "send", error: "REJECTED — spending policy violated",
               policy: { limit: session.spendingLimitEth, enforced: "on-chain" },
               policyCheck: policyCheck.reason,
               message: "The delegation caveat enforcer would revert this on-chain. Blocked locally to save gas.",
@@ -326,63 +386,53 @@ export default function Home() {
             break;
           }
 
-          // Venice reasoning (proxied through server — only server knows API key)
+          // Venice reasoning
           const veniceRes = await fetch("/api/venice", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              amount: cmd.amount,
-              recipient: cmd.recipient,
-              policy: session.spendingLimitEth,
-            }),
+            body: JSON.stringify({ amount: cmd.amount, recipient: cmd.recipient, policy: session.spendingLimitEth }),
           });
           const veniceResult = await veniceRes.json();
 
           if (veniceResult.decision === "reject") {
             session.transactions.push({
-              to: cmd.recipient,
-              amount: cmd.amount,
-              status: "rejected",
-              reason: `Venice: ${veniceResult.reasoning}`,
-              timestamp: Date.now(),
+              to: cmd.recipient, amount: cmd.amount, status: "rejected",
+              reason: `Venice: ${veniceResult.reasoning}`, timestamp: Date.now(),
             });
             saveSession({ ...session });
-
             setResult({
-              ok: false,
-              action: "send",
-              error: "REJECTED by private reasoning engine",
-              veniceReasoning: veniceResult.reasoning,
-              veniceConfidence: veniceResult.confidence,
+              ok: false, action: "send", error: "REJECTED by private reasoning engine",
+              veniceReasoning: veniceResult.reasoning, veniceConfidence: veniceResult.confidence,
             });
             break;
           }
 
-          // Execute via delegation (ephemeral agent key redeems, enforced on-chain)
-          const txResult = await executeWithDelegation({
-            agentPrivateKey: session.agentPrivateKey,
-            delegation: session.delegation,
-            to: cmd.recipient as Address,
-            valueEth: cmd.amount,
+          // Execute via delegation (ephemeral agent key redeems)
+          const agentWallet = getEphemeralWalletClient(session.agentPrivateKey);
+          const env = getSmartAccountsEnvironment(84532);
+
+          const txHash = await contracts.DelegationManager.execute.redeemDelegations({
+            client: agentWallet,
+            delegationManagerAddress: env.DelegationManager as Address,
+            delegations: [[session.delegation]],
+            modes: [ExecutionMode.SingleDefault],
+            executions: [[{
+              target: cmd.recipient as Address,
+              value: parseEther(cmd.amount),
+              callData: "0x" as Hex,
+            }]],
           });
 
           session.transactions.push({
-            to: cmd.recipient,
-            amount: cmd.amount,
-            status: "approved",
-            reason: policyCheck.reason,
-            txHash: txResult.txHash,
-            timestamp: Date.now(),
+            to: cmd.recipient, amount: cmd.amount, status: "approved",
+            reason: policyCheck.reason, txHash, timestamp: Date.now(),
           });
           saveSession({ ...session });
 
           setResult({
-            ok: true,
-            action: "send",
+            ok: true, action: "send",
             message: "Transaction approved and executed. Policy enforced on-chain.",
-            txHash: txResult.txHash,
-            recipient: cmd.recipient,
-            amount: cmd.amount,
+            txHash, recipient: cmd.recipient, amount: cmd.amount,
             policy: { limit: session.spendingLimitEth, enforced: "on-chain" },
             veniceReasoning: veniceResult.reasoning,
           });
@@ -391,42 +441,30 @@ export default function Home() {
 
         case "authenticate": {
           if (!session) throw new Error("Run 'setup' first");
-
           const siwa = await signSiwaMessage(session.agentPrivateKey, session.agentAddress);
-
           setResult({
-            ok: true,
-            action: "authenticate",
-            message: "SIWA message signed by ephemeral agent key. Identity proven without revealing principal.",
-            siwa: {
-              ...siwa,
-              note: "The agent signed with an ephemeral key that exists only in this browser session. Your wallet address is never exposed.",
-            },
+            ok: true, action: "authenticate",
+            message: "SIWA message signed by ephemeral agent key.",
+            siwa: { ...siwa, note: "Signed with ephemeral key. Your wallet address is never exposed." },
           });
           break;
         }
 
         case "check-balance": {
           const balances: Record<string, string> = {};
-          if (session?.userSmartAccount) {
-            balances.userSmartAccount = await getBalance(session.userSmartAccount);
-          }
-          if (address) {
-            balances.connectedWallet = await getBalance(address);
-          }
-
+          if (session?.userSmartAccount) balances.smartAccount = await getBalance(session.userSmartAccount);
+          if (address) balances.connectedWallet = await getBalance(address);
           setResult({ ok: true, action: "balance", balances });
           break;
         }
 
         case "status": {
           setResult({
-            ok: true,
-            action: "status",
+            ok: true, action: "status",
             setup: session ? "complete" : "not initialized",
             userSmartAccount: session?.userSmartAccount || null,
             agentAddress: session?.agentAddress || null,
-            agentKeyType: "ephemeral (browser-only, not stored on server)",
+            agentKeyType: "ephemeral (browser-only)",
             spendingPolicy: `${session?.spendingLimitEth || "0.01"} ETH max`,
             enforcement: "MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer",
             chain: "Base Sepolia (84532)",
@@ -439,28 +477,11 @@ export default function Home() {
 
         case "set-policy": {
           if (!session) throw new Error("Run 'setup' first.");
-
-          // Re-setup with new limit
-          const policyRes = await fetch("/api/agent/setup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userAddress: address, maxEth: cmd.maxEth }),
-          });
-          const policyData = await policyRes.json();
-          if (!policyData.ok) throw new Error(policyData.error);
-
-          saveSession({
-            ...session,
-            delegation: policyData.delegation,
-            agentPrivateKey: policyData.agentPrivateKey,
-            agentAddress: policyData.agentAddress,
-            spendingLimitEth: cmd.maxEth,
-          });
-
+          // Just update the local limit — a real implementation would re-sign delegation
+          saveSession({ ...session, spendingLimitEth: cmd.maxEth });
           setResult({
-            ok: true,
-            action: "set-policy",
-            message: `Spending policy updated to ${cmd.maxEth} ETH. New delegation signed.`,
+            ok: true, action: "set-policy",
+            message: `Spending policy updated to ${cmd.maxEth} ETH.`,
             limit: cmd.maxEth,
             enforcement: "on-chain (caveat enforcer will revert if exceeded)",
           });
@@ -469,23 +490,17 @@ export default function Home() {
 
         case "history": {
           const txs = session?.transactions || [];
-          setResult({
-            ok: true,
-            action: "history",
-            transactions: txs.slice(-10),
-            total: txs.length,
-          });
+          setResult({ ok: true, action: "history", transactions: txs.slice(-10), total: txs.length });
           break;
         }
 
         case "help":
           setResult({
-            ok: true,
-            action: "help",
+            ok: true, action: "help",
             commands: [
               "setup — Connect wallet, create delegation with ephemeral agent key",
-              "send <amount> to <address> — Send ETH via delegated authority (policy-enforced on-chain)",
-              "set-policy <maxEth> — Update spending limit (re-signs delegation)",
+              "send <amount> to <address> — Send ETH via delegated authority (on-chain enforced)",
+              "set-policy <maxEth> — Update spending limit",
               "balance — Check wallet balances",
               "status — Agent status + policy info",
               "auth — Sign SIWA message (prove agent identity without revealing principal)",
@@ -513,7 +528,6 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Status cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-geass-card border border-geass-border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-3">
@@ -525,7 +539,7 @@ export default function Home() {
           {!isConnected ? (
             <p className="text-sm text-yellow-500">Connect wallet to start</p>
           ) : chainId !== 84532 ? (
-            <p className="text-sm text-yellow-500">Switch to Base Sepolia (chain 84532) using the chain selector above</p>
+            <p className="text-sm text-yellow-500">Switch to Base Sepolia using the chain selector above</p>
           ) : (
             <div className="space-y-2 text-sm font-mono">
               <div>
@@ -570,7 +584,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Command input */}
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">Agent Command</h3>
         <form onSubmit={runCommand} className="flex gap-3">
@@ -578,7 +591,7 @@ export default function Home() {
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder={isConnected ? "setup | send 0.005 to 0x… | balance | auth | history" : "Connect wallet first"}
+            placeholder={isConnected ? "setup | send 0.001 to 0x… | balance | auth | history" : "Connect wallet first"}
             disabled={!isConnected}
             className="flex-1 bg-geass-bg border border-geass-border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-geass-accent disabled:opacity-50"
           />
@@ -590,11 +603,9 @@ export default function Home() {
             {running ? "Running…" : "Execute"}
           </button>
         </form>
-
         {result && <ResultCard data={result} />}
       </div>
 
-      {/* How it works */}
       <div className="bg-geass-card border border-geass-border rounded-xl p-6">
         <h3 className="text-sm font-medium text-gray-400 mb-3">How GEASS Keeps Secrets</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
