@@ -308,6 +308,8 @@ export default function Home() {
         chain: undefined,
       });
       await publicClient.waitForTransactionReceipt({ hash });
+      // Wait for chain to confirm before reading balance
+      await new Promise(r => setTimeout(r, 2000));
       const bal = await getBalance(session.userSmartAccount);
       setSaBalance(bal);
       getBalance(address).then(setWalletBalance).catch(() => {});
@@ -567,6 +569,9 @@ export default function Home() {
       setResult({ ok: false, error: message });
     } finally {
       setRunning(false);
+      // Refresh balances after any command
+      if (session?.userSmartAccount) getBalance(session.userSmartAccount).then(setSaBalance).catch(() => {});
+      if (address) getBalance(address).then(setWalletBalance).catch(() => {});
     }
   }
 
