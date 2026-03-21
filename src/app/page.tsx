@@ -673,7 +673,7 @@ export default function Home() {
         <div className="bg-geass-card border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Spending Limit</h3>
           <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-2xl font-bold text-white font-display">{session?.spendingLimitEth || "0.01"}</span>
+            <span className="text-2xl font-bold text-white font-display">{isConnected && session ? session.spendingLimitEth : "0.01"}</span>
             <span className="text-sm text-gray-500">ETH max</span>
           </div>
           <p className="text-[10px] text-gray-600 leading-relaxed">NativeTokenTransferAmountEnforcer — on-chain, not app code</p>
@@ -682,7 +682,7 @@ export default function Home() {
         {/* Balances */}
         <div className="bg-geass-card border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Balances</h3>
-          {session && saBalance != null ? (
+          {isConnected && session && saBalance != null ? (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500">Pool</span>
@@ -706,9 +706,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-600 font-display">
-              {walletBalance ? `Wallet: ${parseFloat(walletBalance).toFixed(4)} ETH` : "Connect wallet"}
-            </p>
+            <p className="text-sm text-gray-600 font-display">Connect wallet</p>
           )}
         </div>
       </motion.div>

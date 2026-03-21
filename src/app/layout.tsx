@@ -10,6 +10,7 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-display" });
 export const metadata: Metadata = {
   title: "GEASS — The Power of Absolute Delegation",
   description: "Non-custodial financial privacy agent — delegated spending, private reasoning, identity separation",
+  icons: { icon: "/favicon.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
