@@ -1,22 +1,24 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Nav } from "@/components/nav";
+import { OnboardingOverlay } from "@/components/onboarding";
 
-const inter = Inter({ subsets: ["latin"] });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: "GEASS — The Power of Absolute Delegation",
-  description: "The power of absolute delegation — scoped spending via MetaMask Delegation Framework",
+  description: "Non-custodial financial privacy agent — delegated spending, private reasoning, identity separation",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className}>
+      <body className={outfit.className}>
         <Providers>
-          <div className="min-h-screen flex flex-col">
+          <OnboardingOverlay />
+          <div className="min-h-screen flex flex-col relative z-10">
             <Nav />
             <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
               {children}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAccount, useWalletClient } from "wagmi";
+import { motion } from "motion/react";
 import type { Address, Hex } from "viem";
 import { parseEther, formatEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -592,7 +593,11 @@ export default function Home() {
   return (
     <div className="space-y-5 relative">
       {/* Hero header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-geass-card via-geass-bg to-geass-card border border-geass-border p-8">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-geass-card via-geass-bg to-geass-card border border-geass-border p-8">
         <div className="absolute top-0 right-0 w-64 h-64 bg-geass-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-geass-purple/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
         <div className="relative">
@@ -603,10 +608,14 @@ export default function Home() {
             Non-custodial spending delegation with private reasoning. Your wallet delegates, the ephemeral agent executes, caveat enforcers protect.
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Status grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Delegation status */}
         <div className="bg-geass-card border border-geass-border rounded-xl p-5 geass-glow hover:border-geass-border-bright transition-colors">
           <div className="flex items-center gap-2 mb-4">
@@ -674,7 +683,7 @@ export default function Home() {
             </p>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Getting Started — only when needed */}
       {isConnected && step < 3 && (
@@ -702,7 +711,11 @@ export default function Home() {
       )}
 
       {/* Command terminal */}
-      <div className="bg-geass-card border border-geass-border rounded-xl p-5 scanline">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="bg-geass-card border border-geass-border rounded-xl p-5 scanline">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex gap-1">
             <div className="w-2.5 h-2.5 rounded-full bg-geass-red/60" />
@@ -736,11 +749,15 @@ export default function Home() {
             ) : "Execute"}
           </button>
         </form>
-        {result && <div className="fade-up"><ResultCard data={result} /></div>}
-      </div>
+        {result && <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}><ResultCard data={result} /></motion.div>}
+      </motion.div>
 
       {/* Three pillars */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {
             icon: "⚡",
@@ -767,7 +784,7 @@ export default function Home() {
             <p className="text-xs text-gray-500 leading-relaxed">{pillar.desc}</p>
           </div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
