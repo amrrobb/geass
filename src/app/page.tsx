@@ -2,18 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { getWalletClient } from "@wagmi/core";
-import { config } from "@/lib/wagmi";
 import type { Address, Hex } from "viem";
 import {
-  generateEphemeralKey,
-  createSpendingDelegation,
   executeWithDelegation,
-  fundAgentGas,
   checkPolicy,
   signSiwaMessage,
   getBalance,
-  publicClient,
 } from "@/lib/delegation-client";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -274,44 +268,27 @@ export default function Home() {
       switch (cmd.type) {
         case "setup": {
           if (!isConnected || !address) throw new Error("Connect your wallet first.");
-          if (chainId !== 84532) throw new Error("Switch to Base Sepolia network first. Use the chain selector in the top right.");
 
-          const walletClient = await getWalletClient(config, { chainId: 84532 });
-
-          const ephemeral = generateEphemeralKey();
-          const del = await createSpendingDelegation({
-            walletClient,
-            agentAddress: ephemeral.address,
-            maxEth: "0.01",
+          // Setup via server API — creates smart account, delegation, ephemeral key
+          const setupRes = await fetch("/api/agent/setup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userAddress: address }),
           });
-
-          // Fund ephemeral agent with gas (user pays ~0.001 ETH for agent gas)
-          await fundAgentGas({ walletClient, agentAddress: ephemeral.address, amountEth: "0.001" });
-
-          const saBalance = await getBalance(del.userSmartAccount as Address);
-          const funded = parseFloat(saBalance) > 0;
+          const setupData = await setupRes.json();
+          if (!setupData.ok) throw new Error(setupData.error);
 
           const newSession: SessionState = {
-            agentPrivateKey: ephemeral.privateKey,
-            agentAddress: ephemeral.address,
-            userSmartAccount: del.userSmartAccount as Address,
-            delegation: del.delegation,
+            agentPrivateKey: setupData.agentPrivateKey,
+            agentAddress: setupData.agentAddress,
+            userSmartAccount: setupData.userSmartAccount,
+            delegation: setupData.delegation,
             spendingLimitEth: "0.01",
             transactions: [],
           };
           saveSession(newSession);
 
-          setResult({
-            ok: true,
-            action: "setup",
-            message: "Delegation created. Your wallet signed the spending policy. Agent key is ephemeral — exists only in this browser session.",
-            userSmartAccount: del.userSmartAccount,
-            agentAddress: ephemeral.address,
-            spendingPolicy: "0.01 ETH max per delegation",
-            enforcement: "On-chain via MetaMask Delegation Framework — NativeTokenTransferAmountEnforcer",
-            smartAccountFunded: funded,
-            note: funded ? undefined : "Fund the smart account with Base Sepolia ETH to enable on-chain execution",
-          });
+          setResult(setupData);
           break;
         }
 
@@ -453,26 +430,29 @@ export default function Home() {
         }
 
         case "set-policy": {
-          if (!session || !address) throw new Error("Run 'setup' first. Make sure wallet is on Base Sepolia.");
+          if (!session) throw new Error("Run 'setup' first.");
 
-          const policyWalletClient = await getWalletClient(config, { chainId: 84532 });
-
-          const del = await createSpendingDelegation({
-            walletClient: policyWalletClient,
-            agentAddress: session.agentAddress,
-            maxEth: cmd.maxEth,
+          // Re-setup with new limit
+          const policyRes = await fetch("/api/agent/setup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userAddress: address, maxEth: cmd.maxEth }),
           });
+          const policyData = await policyRes.json();
+          if (!policyData.ok) throw new Error(policyData.error);
 
           saveSession({
             ...session,
-            delegation: del.delegation,
+            delegation: policyData.delegation,
+            agentPrivateKey: policyData.agentPrivateKey,
+            agentAddress: policyData.agentAddress,
             spendingLimitEth: cmd.maxEth,
           });
 
           setResult({
             ok: true,
             action: "set-policy",
-            message: `Spending policy updated. New delegation signed with ${cmd.maxEth} ETH limit.`,
+            message: `Spending policy updated to ${cmd.maxEth} ETH. New delegation signed.`,
             limit: cmd.maxEth,
             enforcement: "on-chain (caveat enforcer will revert if exceeded)",
           });
