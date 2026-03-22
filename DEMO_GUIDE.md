@@ -62,11 +62,19 @@
 
 ---
 
+### Scene 2.5: Set Policy (10 sec)
+
+*[Type: `set-policy 0.005` and Execute]*
+
+> "The human stays in control. I lower the limit to 0.005 ETH — one command, instantly enforced. The agent's authority shrinks in real-time. No admin panel, no waiting. The boundary moves when I say it moves."
+
+---
+
 ### Scene 3: Send Rejected (15 sec)
 
-*[Type: `send 0.05 to 0xd4c894e2209a5291ab6a4e0f72f6cb385e2a91ab` and Execute]*
+*[Type: `send 0.008 to 0xd4c894e2209a5291ab6a4e0f72f6cb385e2a91ab` and Execute]*
 
-> "Now 0.05 ETH — five times the limit. Instantly rejected. The agent doesn't even call Venice or submit on-chain. The caveat enforcer would revert it, so the agent saves gas by blocking locally. This is the infrastructure keeping the human in control."
+> "Now 0.008 ETH — over the new 0.005 limit I just set. Instantly rejected. The agent doesn't even call Venice or submit on-chain. The caveat enforcer would revert it, so the agent saves gas by blocking locally. The human tightened the leash — and it held."
 
 ---
 
