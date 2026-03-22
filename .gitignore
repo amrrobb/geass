@@ -22,3 +22,5 @@ out/
 # Misc
 *.log
 .agent-state.json
+
+video
